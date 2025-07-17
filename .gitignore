@@ -1,0 +1,19 @@
+# files to ignore - just data file for now
+anonymized_data_073117.txt
+.Rproj.user
+*.csv
+*.png
+*.pdf
+*.jpg
+*.tex
+*.xlsx
+*.cpg
+*.dbf
+*.prj
+*.shp
+*.shx
+*.dta
+*.rds
+*.txt
+# all raw data files
+mkdata/*_*/

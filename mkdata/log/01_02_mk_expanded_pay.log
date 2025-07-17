@@ -1,0 +1,876 @@
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+      name:  <unnamed>
+       log:  /proj/kohlhepplab/projects/selection_injury/mkdata/log/01_02_mk_expanded_pay.log
+  log type:  text
+ opened on:  27 Feb 2025, 20:58:17
+
+. set more off 
+
+. cap ssc install unique
+
+. local print_pic ="yes"
+
+. set scheme cleanplots 
+
+. //Purpose: Expand the pay data to have an ob for every day for each person and to do cumulative sums of each var. 
+. 
+. *** create some charts with various statistics of the two data sources.
+. use data/pay_data, clear
+
+. gen year = year(dofc(work_date))
+
+. * histograms of pay codes. 
+. gen month=mofd(dofc(work_date))
+
+. format month %tmCCYY
+
+. label variable month "Month of Work Date"
+
+. gen outlier = 1 if year(dofc(work_date))<=2013
+(450,580 missing values generated)
+
+. drop if outlier==1
+(184 observations deleted)
+
+. hist month, discrete density
+(start=648, width=1)
+
+. if "`print_pic'"=="yes" graph export out/freq_work.pdf, replace
+file out/freq_work.pdf saved as PDF format
+
+. tostring year, replace
+year was double now str4
+
+. bys employee_name year: gen unique_emps=1 if _n==1
+(448,677 missing values generated)
+
+. bys variation_desc year: gen unique_codes=1 if _n==1
+(450,336 missing values generated)
+
+. bys employee_name work_date: gen unique_persondays=1 if _n==1
+(99,325 missing values generated)
+
+. tempfile all
+
+. save `all'
+file /work/appscr/statawork/kohlhepp/St97597.000001 saved as .dta format
+
+. replace year = "Overall"
+variable year was str4 now str7
+(450,580 real changes made)
+
+. replace unique_emps = .
+(1,903 real changes made, 1,903 to missing)
+
+. drop unique_codes
+
+. bys variation_desc: gen unique_codes=1 if _n==1
+(450,480 missing values generated)
+
+. bys employee_name: replace unique_emps=1 if _n==1
+(736 real changes made)
+
+. append using `all'
+
+. gen recs=1
+
+. collapse (count) recs unique_persondays unique_emps unique_codes , by(year)
+
+. outsheet using out/01_02_work_data_counts.csv, comma replace
+
+. 
+. use data/workers_comp, clear
+
+. tempfile forgrand
+
+. save `forgrand'
+file /work/appscr/statawork/kohlhepp/St97597.000002 saved as .dta format
+
+. preserve
+
+. replace natureofinjury = "All Types"
+(351 real changes made)
+
+. append using `forgrand'
+
+. gen emp_count =1 
+
+. replace natureofinjury = subinstr(natureofinjury, "Multiple", "Mult",.) if strpos(natureofinjury, "Mult ")>0
+(0 real changes made)
+
+. replace natureofinjury = subinstr(natureofinjury, "Incl", "Include",.) if strpos(natureofinjury, "Incl ")>0
+(3 real changes made)
+
+. replace natureofinjury = subinstr(natureofinjury, " (e.g.,", "",.) if strpos(natureofinjury, " (e.g., ")>0
+(4 real changes made)
+
+. replace natureofinjury = subinstr(natureofinjury, ",", "",.)
+(7 real changes made)
+
+. collapse (count) emp_count, by(natureofinjury)
+
+. gen last = natureofinjury == "All Types"
+
+. sort last natureofinjury
+
+. gen percent = emp_count/emp_count[_N]
+
+. gen ovrl = natureofinjury=="All Types"
+
+. gsort ovrl -emp_count 
+
+. drop ovrl
+
+. outsheet using out/01_02_nature.csv, comma replace
+
+. restore
+
+. preserve
+
+. replace claimcausegroup = "All Types"
+(351 real changes made)
+
+. append using `forgrand'
+
+. gen emp_count =1 
+
+. collapse (count) emp_count, by(claimcausegroup)
+
+. gen last = claimcausegroup == "All Types"
+
+. sort last claimcausegroup
+
+. gen percent = emp_count/emp_count[_N]
+
+. gen ovrl = claimcausegroup=="All Types"
+
+. gsort ovrl -emp_count 
+
+. outsheet using out/01_02_cause.csv, comma replace
+
+. restore
+
+. gen month=mofd(doi)
+
+. label variable month "Month of Date of Injury"
+
+. format month %tmCCYY
+
+. gen outlier = 1 if year(doi)<=2013
+(348 missing values generated)
+
+. hist month, discrete density  subtitle("Outliers Included")
+(start=565, width=1)
+
+. if "`print_pic'"=="yes" graph export out/01_02_freq_compclaims.pdf, replace
+file out/01_02_freq_compclaims.pdf saved as PDF format
+
+. hist month if outlier!=1, discrete density subtitle("Outliers Excluded")
+(start=649, width=1)
+
+. if "`print_pic'"=="yes" graph export out/01_02_freq_compclaims_nooutliers.pdf, replace
+file out/01_02_freq_compclaims_nooutliers.pdf saved as PDF format
+
+. ****
+. 
+. 
+. *** save job_status terms
+. use 20170803_payworkers_comp/data/anonymized_data_073117, clear
+
+. * job_end_date is always blank
+. assert  job_end_date==.
+
+. gen analysis_workdate = dofc(job_status_date)
+(121,261 missing values generated)
+
+. format analysis_workdate %td
+
+. keep if inlist(job_status, "Transferred Out", "Terminated")
+(491,649 observations deleted)
+
+. keep analysis_workdate employee_name
+
+. duplicates drop
+
+Duplicates in terms of all variables
+
+(45,976 observations deleted)
+
+. gen status_term = 1
+
+. tempfile status_terms
+
+. save `status_terms'
+file /work/appscr/statawork/kohlhepp/St97597.000005 saved as .dta format
+
+. ****
+. 
+. 
+. 
+. *** now begin working on pay data.
+. use data/pay_data, clear
+
+. 
+. * save out just termination paycodes
+. preserve
+
+. keep if strpos(variation_description, "TERM")>0
+(450,450 observations deleted)
+
+. gen analysis_workdate = dofc(work_date)
+
+. format analysis_workdate %td
+
+. keep analysis_workdate variation_description employee_name
+
+. duplicates drop
+
+Duplicates in terms of all variables
+
+(15 observations deleted)
+
+. 
+. * keep first observed termination code in streak
+. collapse (min) analysis_workdate, by(employee_name)
+
+. append using `status_terms'
+
+. duplicates drop analysis_workdate employee_name, force
+
+Duplicates in terms of analysis_workdate employee_name
+
+(8 observations deleted)
+
+. 
+. * if the termination is before fiscal year 2014-2015, drop
+. drop if analysis_workdate<d(01jul2014) 
+(10 observations deleted)
+
+. 
+. * verify that all conflicts are within a year.
+. bys employee_name (analysis_workdate): gen diff = analysis_workdate[_N]-analysis_workdate[1]
+
+. assert diff<=365
+
+. bys employee_name (analysis_workdate): gen count = _n
+
+. 
+. * use first termination record.
+. drop if count>1
+(42 observations deleted)
+
+. drop count
+
+. 
+. * unique by employee
+. isid employee_name
+
+. keep employee_name analysis_workdate
+
+. rename analysis_workdate term_date
+
+. tempfile terms
+
+. save `terms'
+file /work/appscr/statawork/kohlhepp/St97597.000007 saved as .dta format
+
+. restore
+
+. 
+. * only work pay codes.
+. keep if work==1 | strpos(variation_description, " IOD ")>0 | out_type==1 
+(56,335 observations deleted)
+
+. * examine the effective rate.
+. gen test_rate = pay_amount/hours
+(671 missing values generated)
+
+. 
+. * remove 0 test rates from hours worked.
+. drop if test_rate==0 & work==1
+(1,007 observations deleted)
+
+. 
+. gen iod_flag = 1 if strpos(variation_description, "IOD")>0
+(375,663 missing values generated)
+
+. * are the following unique within person-day?
+. bys employee_name work_date: assert dept==dept[1]
+
+. 
+. * collapse to day. we allow corrections (negatives to cancel out hours)
+. gen varot_hours = hours if strpos(lower(variation_description), "overtime")>0 & work==1
+(328,825 missing values generated)
+
+. replace varot_hours= 0 if missing(varot_hours)
+(328,825 real changes made)
+
+. gen varstandard_hours = hours if strpos(lower(variation_description), "overtime")==0
+(66,168 missing values generated)
+
+. replace varstandard_hours=0 if missing(varstandard_hours)
+(66,168 real changes made)
+
+. 
+. gen types = "not leave" if work==1 | iod_flag==1 
+(63,595 missing values generated)
+
+. replace types = cleaned_variation_desc if out_type==1
+variable types was str9 now str48
+(81,131 real changes made)
+
+. assert !missing(types)
+
+. 
+. * by person, choose the var_rate that is highest. note that all regular base rates are less than 40.
+. * so any rates over 40 are clearly not work pay rates.
+. assert var_rate<34 if work==1
+
+. tab variation_description if var_rate>34
+
+                  VARIATION_DESCRIPTION |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+      CURR YR IOD CONVERSION ADJUSTMENT |        144       81.82       81.82
+     PRIOR YR IOD CONVERSION ADJUSTMENT |         27       15.34       97.16
+REDUCTION FROM TERMINATION PAYOUTS BA.. |          4        2.27       99.43
+REDUCTION FROM TERMINATION PAYOUTS BA.. |          1        0.57      100.00
+----------------------------------------+-----------------------------------
+                                  Total |        176      100.00
+
+. by employee_name work_date: egen max_rate = max(var_rate)
+
+. assert max_rate>=0
+
+. replace max_rate = -99 if max_rate>34
+(676 real changes made)
+
+. 
+. 
+. gen ot_pay_amount = pay_amount*(strpos(lower(variation_description), "overtime")>0)
+
+. gen work_pay_amount = pay_amount*work
+(81,354 missing values generated)
+
+. 
+. * divs are not all locations. to get div, set to missing all divs that are not locations
+. *gen geo_div = "Central" if div==810 | div==812
+. *replace geo_div = "Harbor Traffic Control" if div==828
+. *replace geo_div = "Harbor Traffic Control" if div==828
+. *replace geo_div = "Hollywood" if div==811 | div==819
+. *replace geo_div = "Southern" if div==809 | div==818
+. *replace geo_div = "Southern" if div==809 | div==818
+. *replace geo_div = "Valley" if div==816
+. *replace geo_div = "Western" if div==814
+. 
+. rename div geo_div
+
+. 
+. ** only keep 800 codes
+. replace geo_div = . if geo_div<800
+(700 real changes made, 700 to missing)
+
+. 
+. 
+. collapse (sum) tot_hours = hours varstandard_hours varot_hours work_pay_amount ot_pay_amount (firstnm) iod_flag, by(employee_name work_date dept yearsoldonworkdate geo_div types 
+> sick_subset maximum_gap_2015 max_rate)
+
+. 
+. 
+. * for the categories of leave time, zero out negatives so things don't cancel across categories
+. replace tot_hours=0 if tot_hours<0 & types!="not leave"
+(581 real changes made)
+
+. 
+. * now collapse to just leave vs not leave.
+. replace types = "leave" if types!="not leave"
+(75,356 real changes made)
+
+. 
+. collapse (sum) tot_hours varstandard_hours varot_hours work_pay_amount ot_pay_amount (firstnm) iod_flag, by(employee_name work_date dept yearsoldonworkdate geo_div types sick_sub
+> set maximum_gap_2015 max_rate)
+
+. 
+. 
+. * now create separate var for leave time and zero out tot_hours for leave time and sum it all.
+. gen leave_hours = tot_hours if types=="leave"
+(258,001 missing values generated)
+
+. replace leave_hours =0 if types=="not leave"
+(258,001 real changes made)
+
+. assert !missing(leave_hours)
+
+. gen sick_hours = tot_hours if sick_subset==1
+(307,082 missing values generated)
+
+. replace sick_hours=0 if sick_subset!=1
+(307,082 real changes made)
+
+. replace tot_hours=0 if types=="leave"
+(69,787 real changes made)
+
+. collapse (sum) tot_hours leave_hours sick_hours varstandard_hours varot_hours work_pay_amount ot_pay_amount (firstnm) iod_flag, by(employee_name work_date dept yearsoldonworkdate
+>  geo_div maximum_gap_2015 max_rate)
+
+. 
+. *** save out the data at the div-officer-day level for network creation.
+. isid employee_name work_date geo_div,m
+
+. preserve
+
+. keep if varstandard_hours>0 | varot_hours>0
+(3,081 observations deleted)
+
+. keep if !missing(geo_div)
+(670 observations deleted)
+
+. gen analysis_workdate = dofc(work_date)
+
+. keep geo_div employee_name analysis_workdate
+
+. format analysis_workdate %td
+
+. save data/01_02_fornetwork, replace
+file data/01_02_fornetwork.dta saved
+
+. restore
+
+. 
+. 
+. 
+. bys employee_name work_date (tot_hours geo_div): assert _N<=2
+
+. bys employee_name work_date (tot_hours geo_div): gen div1 = geo_div[1]
+(663 missing values generated)
+
+. bys employee_name work_date (tot_hours geo_div): gen div2 = geo_div[2]
+(320,714 missing values generated)
+
+. bys employee_name work_date (tot_hours geo_div): gen lhours_1 = leave_hours[1]
+
+. bys employee_name work_date (tot_hours geo_div): gen lhours_2 = leave_hours[2]
+(320,670 missing values generated)
+
+. bys employee_name work_date (tot_hours geo_div): gen shours_1 = sick_hours[1]
+
+. bys employee_name work_date (tot_hours geo_div): gen shours_2 = sick_hours[2]
+(320,670 missing values generated)
+
+. collapse (sum) leave_hours tot_hours sick_hours varstandard_hours varot_hours work_pay_amount ot_pay_amount (firstnm) iod_flag, by(employee_name work_date dept yearsoldonworkdate
+>  div1 div2 maximum_gap_2015 max_rate lhours_1 lhours_2 shours_1 shours_2)
+
+. 
+. isid employee_name work_date
+
+. 
+. *** tabulate rates
+. summ max_rate, d
+
+                          max_rate
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%        17.35            -99
+ 5%        21.56            -99
+10%        23.92            -99       Obs             320,897
+25%        30.47            -99       Sum of wgt.     320,897
+
+50%        30.54                      Mean           29.26234
+                        Largest       Std. dev.       4.63015
+75%        30.54       33.99184
+90%        32.22       33.99184       Variance       21.43829
+95%        32.22       33.99184       Skewness      -12.49762
+99%        32.22       33.99184       Kurtosis       323.4221
+
+. count if max_rate==-99
+  175
+
+. assert max_rate<=34
+
+. * allow fill down for these rates
+. assert !missing(max_rate)
+
+. replace max_rate=. if max_rate==-99
+(175 real changes made, 175 to missing)
+
+. bys employee_name (work_date): replace max_rate=max_rate[_n-1] if missing(max_rate)
+(175 real changes made)
+
+. assert !missing(max_rate)
+
+. 
+. 
+. **** NOTE: We zero one situation with negative total hours (36 total but only 1 after 01jan2015)
+. gen flag_hours_zeroed = tot_hours<0
+
+. replace tot_hours=0 if tot_hours<0
+(11 real changes made)
+
+. gen analysis_workdate=dofc(work_date)
+
+. format analysis_workdate %td
+
+. 
+. ************** merge on injuries.
+. gen doi = analysis_workdate
+
+. merge m:1 employee_name doi using data/workers_comp, keepusing(timeofinj natureofinjury bodypart claimcause claimcausegroup contribcause medpd)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       320,672
+        from master                   320,609  (_merge==1)
+        from using                         63  (_merge==2)
+
+    Matched                               288  (_merge==3)
+    -----------------------------------------
+
+. format doi %td
+
+. 
+. * check merge
+. bys employee_name (_m analysis_workdate ): gen flag=1 if _m[1]==_m[_N] & _m[1]==2
+(320,960 missing values generated)
+
+. assert flag!=1
+
+. drop flag 
+
+. replace analysis_workdate = doi if missing(analysis_workdate)
+(63 real changes made)
+
+. gen matched_injury =_m==3
+
+. drop _m
+
+. 
+. * fix variables
+. replace tot_hours = 0 if missing(tot_hours)
+(63 real changes made)
+
+. replace varstandard_hours=0 if missing(varstandard_hours)
+(63 real changes made)
+
+. replace varot_hours = 0 if missing(varot_hours)
+(63 real changes made)
+
+. replace leave_hours = 0 if missing(leave_hours)
+(63 real changes made)
+
+. replace sick_hours=0 if missing(sick_hours)
+(63 real changes made)
+
+. 
+. sort employee_name analysis_workdate
+
+. tempfile data
+
+. save `data'
+file /work/appscr/statawork/kohlhepp/St97597.000009 saved as .dta format
+
+. 
+. ** expand the data to include the the fiscal years 2014-2015 and 2015-2016
+. use data/employee_data, clear
+
+. gen date_start = dofc(original_hire_date) if dofc(original_hire_date)>d(01jul2014)
+(676 missing values generated)
+
+. replace date_start =d(01jul2014) if dofc(original_hire_date)<=d(01jul2014)
+(676 real changes made)
+
+. assert !missing(date_start)
+
+. keep employee_name date_start
+
+. duplicates drop
+
+Duplicates in terms of all variables
+
+(0 observations are duplicates)
+
+. format date_start %td
+
+. merge 1:1 employee_name using `terms'
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                           589
+        from master                       589  (_merge==1)
+        from using                          0  (_merge==2)
+
+    Matched                               147  (_merge==3)
+    -----------------------------------------
+
+. assert _m!=2
+
+. drop _m
+
+. gen date_end = d(30jun2016) if term_date>d(30jun2016)
+(113 missing values generated)
+
+. replace date_end = term_date if term_date<=d(30jun2016)
+(113 real changes made)
+
+. format date_end %td
+
+. isid employee_name
+
+. drop term_date
+
+. reshape long date, i(employee_name) j(type) string
+(j = _end _start)
+
+Data                               Wide   ->   Long
+-----------------------------------------------------------------------------
+Number of observations              736   ->   1,472       
+Number of variables                   3   ->   3           
+j variable (2 values)                     ->   type
+xij variables:
+                    date_end date_start   ->   date
+-----------------------------------------------------------------------------
+
+. isid employee_name date
+
+. drop type
+
+. encode employee_name, gen(empid)
+
+. xtset empid date
+
+Panel variable: empid (weakly balanced)
+ Time variable: date, 01jul2014 to 11jul2016, but with gaps
+         Delta: 1 day
+
+. tsfill
+
+. rename date analysis_workdate
+
+. 
+. bys empid (employee_name analysis_workdate): replace employee_name = employee_name[_N]
+(465,939 real changes made)
+
+. assert !missing(employee_name)
+
+. 
+. merge 1:1 employee_name analysis_workdate using `data'
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       222,393
+        from master                   184,422  (_merge==1)
+        from using                     37,971  (_merge==2)
+
+    Matched                           282,989  (_merge==3)
+    -----------------------------------------
+
+. drop if _m==2
+(37,971 observations deleted)
+
+. 
+. 
+. replace tot_hours = 0 if missing(tot_hours) // this is crucial.
+(184,422 real changes made)
+
+. replace leave_hours = 0 if missing(leave_hours)
+(184,422 real changes made)
+
+. replace sick_hours =0 if missing(sick_hours)
+(184,422 real changes made)
+
+. replace matched_injury = 0 if matched_injury==.
+(184,422 real changes made)
+
+. isid employee_name analysis_workdate
+
+. sort employee_name analysis_workdate
+
+. by employee_name: replace dept=dept[_n-1] if missing(dept)
+(136,362 real changes made)
+
+. by employee_name: replace max_rate=max_rate[_n-1] if missing(max_rate)
+(136362 real changes made)
+
+. 
+. assert tot_hours!=.
+
+. gen not_worked = tot_hours==0 //important flag.
+
+. label variable not_worked "Created to denote observations created to fill in time gaps."
+
+. foreach var of varlist tot_hours varstandard_hours varot_hours {
+  2.         replace `var' = 0 if missing(`var')
+  3.         by employee_name: gen cum_`var'=`var' if _n==1
+  4.         by employee_name: replace cum_`var'=cum_`var'[_n-1]+`var' if _n!=1
+  5. 
+. }
+(0 real changes made)
+(466,675 missing values generated)
+(466675 real changes made)
+(184,422 real changes made)
+(466,675 missing values generated)
+(466675 real changes made)
+(184,422 real changes made)
+(466,675 missing values generated)
+(466675 real changes made)
+
+. 
+. label variable cum_varot_hours "Cum. Sum. of all OT Hours Based on Var Desc."
+
+. 
+. drop work_date
+
+. assert !missing(analysis_workdate)
+
+. 
+. 
+. 
+. ************** re-attach identifying information like hire date, etc. 
+. rename _m _mold
+
+. merge m:1 employee_name using data/employee_data
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           467,411  (_merge==3)
+    -----------------------------------------
+
+. assert _merge==3
+
+. drop _merge
+
+. assert !missing(original_hire_date) & !missing(job_status)
+
+. 
+. ***** 44 officers have no observed leave or work hours 
+. ***** spot checks show that they are due to residual paycodes or work that is outside the window
+. ***** remove these.
+. bys employee_name (_mold): gen all_miss = _mold[_N]==1
+
+. unique employee_name if all_miss==1
+Number of unique values of employee_name is  44
+Number of records is  28125
+
+. assert r(sum)==44
+
+. drop if all_miss==1
+(28,125 observations deleted)
+
+. drop all_miss _mold
+
+. 
+. *****
+. 
+. gen an_week = wofd(analysis_workdate)
+
+. gen an_month= mofd(analysis_workdate)
+
+. format an_week %tw 
+
+. 
+. 
+. ** add on weather
+. gen date = analysis_workdate
+
+. 
+. merge m:1 date using 20190811_weather/data/weather_daily
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       116,761
+        from master                   116,345  (_merge==1)
+        from using                        416  (_merge==2)
+
+    Matched                           322,941  (_merge==3)
+    -----------------------------------------
+
+. assert _m!=1 if analysis_workdate>=d(01jan2015)
+
+. drop if _m==2
+(416 observations deleted)
+
+. drop _m
+
+. 
+. ** add holidays
+. merge m:1 date using 20190814_fed_holidays/data/holidays
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       427,298
+        from master                   427,219  (_merge==1)
+        from using                         79  (_merge==2)
+
+    Matched                            12,067  (_merge==3)
+    -----------------------------------------
+
+. drop if _m==2
+(79 observations deleted)
+
+. gen is_holiday = _m==3
+
+. drop _m
+
+. drop date
+
+. 
+. gen rain = prcp>0
+
+. 
+. 
+. label variable is_holiday "HOLIDAY"
+
+. label variable tmax "MAX. TEMP."
+
+. label variable rain "RAIN"
+
+. label variable work_pay_amount "Pay from Work Pay Codes"
+
+. label variable ot_pay_amount "Pay from OT Pay Codes"
+
+. label variable medpd "Medical Expenses Paid"
+
+. 
+. confirm variable maximum_gap_2015
+
+. compress
+  variable empid was long now int
+  variable analysis_workdate was double now int
+  variable div1 was double now int
+  variable div2 was double now int
+  variable lhours_1 was double now byte
+  variable lhours_2 was double now byte
+  variable shours_1 was double now byte
+  variable shours_2 was double now byte
+  variable leave_hours was double now byte
+  variable tot_hours was double now byte
+  variable sick_hours was double now byte
+  variable varstandard_hours was double now byte
+  variable varot_hours was double now byte
+  variable work_pay_amount was double now int
+  variable ot_pay_amount was double now int
+  variable iod_flag was double now byte
+  variable flag_hours_zeroed was double now byte
+  variable doi was double now int
+  variable matched_injury was double now byte
+  variable not_worked was double now byte
+  variable cum_tot_hours was double now int
+  variable cum_varstandard_hours was double now int
+  variable cum_varot_hours was double now int
+  variable an_week was double now int
+  variable an_month was double now int
+  variable is_holiday was double now byte
+  variable rain was double now byte
+  (75,996,478 bytes saved)
+
+. save data/working_expanded, replace
+file data/working_expanded.dta saved
+
+. 
+. 
+. 
+. log close
+      name:  <unnamed>
+       log:  /proj/kohlhepplab/projects/selection_injury/mkdata/log/01_02_mk_expanded_pay.log
+  log type:  text
+ closed on:  27 Feb 2025, 20:58:53
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
