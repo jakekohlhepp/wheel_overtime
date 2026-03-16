@@ -1,6 +1,10 @@
-# Overtime Allocation Among LADOT Traffic Officers
+# The Wheel of (Over)Time
 
-Estimation and simulation code for studying overtime allocation mechanisms among Los Angeles Department of Transportation (LADOT) Traffic Officer IIs. Officers bid for overtime shifts via a seniority-based "wheel" system; this project estimates preferences, measures productivity, and simulates counterfactual allocation mechanisms.
+Replication code for **"The Wheel of (Over)Time"** by [Jacob Kohlhepp](https://www.jkohlhepp.com) and [Robert McDonough](https://robmcdonough.com).
+
+> In the United States public sector, there are many examples where overtime is allocated informally, and overtime earnings are concentrated among a small number of government workers. Is this government inefficiency driven by insider influence, or an efficient reflection of worker preferences? We study the Los Angeles Department of Transportation, where a few traffic officers earned more than $100,000 in overtime over 1.5 years. A constantly rotating list called "the wheel" assigns overtime equally initially, but officers are allowed to informally trade. Using novel daily personnel records, we recover the position of the wheel as well as the time-varying network of potential relationships between officers. Officers are several times more likely to work overtime when they are well-connected to coworkers likely endowed with overtime. Nevertheless, overtime inequality primarily reflects underlying differences in preferences. Informal trading achieves 93.8% of the maximum possible allocative efficiency, or $4.15 million more than random assignment.
+
+Paper: [wheel_overtime_draft.pdf](https://www.jkohlhepp.com/pdf/wheel_overtime_draft.pdf)
 
 ## Quick Start
 
