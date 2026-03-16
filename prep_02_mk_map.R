@@ -4,7 +4,7 @@
 #' Creates a map of LADOT parking enforcement districts with office locations.
 #'
 #' Input:  20170803_payworkers_comp/anonymized_data_073117.txt (division codes)
-#'         data/01_05_list_complete.csv (division names + office locations)
+#'         20250320_division_names_offices/list_complete.csv (division names + office locations)
 #'         20250311_ladot_enforcement_districts/ (shapefiles)
 #' Output: out/figures/prep_02_la_street_map.png
 #' =============================================================================
@@ -26,7 +26,7 @@ log_message("Building LA enforcement districts map")
 #' -----------------------------------------------------------------------------
 
 raw_path <- file.path(CONFIG$raw_pay_dir, "anonymized_data_073117.txt")
-list_path <- file.path(CONFIG$data_dir, "01_05_list_complete.csv")
+list_path <- file.path(CONFIG$raw_office_dir, "list_complete.csv")
 districts_path <- CONFIG$raw_districts_dir
 
 assert_required_files(c(raw_path, list_path))

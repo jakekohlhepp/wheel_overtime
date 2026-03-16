@@ -22,6 +22,8 @@ CONFIG <- list(
   raw_weather_dir = "20190811_weather",
   raw_holidays_dir = "20190814_fed_holidays",
   raw_districts_dir = "20250311_ladot_enforcement_districts",
+  raw_office_dir="20250320_division_names_offices",
+  raw_special_events_dir = "20250207_bss_special_events",
   output_dir = Sys.getenv("WHEEL_OUT_DIR", unset = "out"),
 
   # ---------------------------------------------------------------------------
@@ -83,21 +85,15 @@ CONFIG <- list(
   estimation_end = as.Date("2016-06-30"),
   estimation_years = c(2015, 2016),
 
-  ## Collision productivity: distance threshold (meters) for matching
-  collision_dist_threshold = 400,
-
-  ## Identification: tolerance for detecting unidentified officers
-  identification_tol = 1e-08,
-
-  ## Officer bin size for FE residualization of collision counts
-  officer_bin_size = 5,
-
-  ## Number of unidentified officers expected (assertion)
-  expected_unidentified = 33,
-
   ## Expected estimation sample size (assertion)
   expected_estimation_rows = 274908,
   expected_estimation_officers = 535,
+
+  # ---------------------------------------------------------------------------
+  # Analysis parameters
+  # ---------------------------------------------------------------------------
+  ## Termination date cutoff for event studies
+  termination_cutoff = as.Date("2016-06-01"),
 
   # ---------------------------------------------------------------------------
   # Output directories
@@ -152,6 +148,33 @@ get_network_input_path <- function(window, config = CONFIG) {
 get_network_output_path <- function(window, config = CONFIG) {
   suffix <- if (window == config$network_window_default) "" else paste0("_", window)
   file.path(config$data_dir, paste0(config$panel_output_prefix, suffix, ".rds"))
+}
+
+#' Helper: load the contact matrix from a network panel
+#' Returns a data.table with num_emp1, analysis_workdate, and numeric officer-ID columns
+load_contact_matrix <- function(window = CONFIG$network_window_default) {
+  panel_path <- get_network_output_path(window)
+  if (!file.exists(panel_path)) stop("Panel not found: ", panel_path)
+  dt <- readRDS(panel_path)
+  id_cols <- grep("^[0-9]+$", names(dt), value = TRUE)
+  if (length(id_cols) == 0) {
+    ## Contact matrix was cleaned from panel; load from pre-network CSV
+    input_path <- get_network_input_path(window)
+    if (!file.exists(input_path)) stop("Pre-network CSV not found: ", input_path)
+    raw <- data.table::fread(input_path)
+    raw[, analysis_workdate := lubridate::dmy(analysis_workdate)]
+    raw[, num_emp1 := as.integer(gsub(CONFIG$employee_name_pattern, "", employee_name))]
+    exposure_cols <- grep(CONFIG$exposure_pattern, names(raw), value = TRUE)
+    ## Pivot exposure columns to officer-ID columns (same format as old panel)
+    ## Actually, the pre-network has roll{window}_exposure_{id} columns
+    ## Extract officer IDs from exposure column names
+    id_pattern <- paste0("roll", window, "_exposure_")
+    officer_ids <- gsub(id_pattern, "", exposure_cols)
+    raw_sub <- raw[, .SD, .SDcols = c("num_emp1", "analysis_workdate", exposure_cols)]
+    setnames(raw_sub, exposure_cols, officer_ids)
+    return(raw_sub)
+  }
+  dt[, .SD, .SDcols = c("num_emp1", "analysis_workdate", id_cols)]
 }
 
 stata_daily_num <- function(x, config = CONFIG) {
