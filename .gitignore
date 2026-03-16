@@ -1,19 +1,42 @@
-# files to ignore - just data file for now
-anonymized_data_073117.txt
-.Rproj.user
+# Data files - all formats
+*.dta
+*.rds
 *.csv
-*.png
-*.pdf
-*.jpg
-*.tex
+*.txt
 *.xlsx
+
+# Shapefiles
 *.cpg
 *.dbf
 *.prj
 *.shp
 *.shx
-*.dta
-*.rds
-*.txt
-# all raw data files
-mkdata/*_*/
+
+# R artifacts
+.Rproj.user
+.Rhistory
+.RData
+*.Rproj
+
+# Output files
+*.png
+*.pdf
+*.jpg
+*.jpeg
+*.tex
+
+# Data directories
+data/
+20170803_payworkers_comp/
+20190811_weather/
+20190814_fed_holidays/
+20250311_ladot_enforcement_districts/
+out/
+log/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Portable skills (not part of the research code)
+portable_skills/
