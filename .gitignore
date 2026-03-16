@@ -33,6 +33,17 @@ data/
 20250311_ladot_enforcement_districts/
 out/
 log/
+logs/
+
+# renv
+renv/library/
+renv/staging/
+renv/cellar/
+renv/python/
+renv/sandbox/
+
+# Machine-specific
+.Renviron
 
 # OS files
 .DS_Store

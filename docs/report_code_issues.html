@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Issues Report: Traffic Officers Productivity</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 1100px; margin: 40px auto; padding: 0 20px; color: #222; line-height: 1.6; background: #fafafa; }
+  h1 { border-bottom: 3px solid #c0392b; padding-bottom: 10px; color: #c0392b; }
+  h2 { color: #34495e; margin-top: 40px; border-left: 4px solid #e74c3c; padding-left: 12px; }
+  h3 { color: #555; margin-top: 25px; }
+  .critical { background: #fdedec; border: 2px solid #e74c3c; border-radius: 8px; padding: 15px; margin: 15px 0; }
+  .major { background: #fef5e7; border: 2px solid #f39c12; border-radius: 8px; padding: 15px; margin: 15px 0; }
+  .moderate { background: #eaf2f8; border: 2px solid #3498db; border-radius: 8px; padding: 15px; margin: 15px 0; }
+  .minor { background: #f2f3f4; border: 2px solid #95a5a6; border-radius: 8px; padding: 15px; margin: 15px 0; }
+  .severity { display: inline-block; padding: 2px 10px; border-radius: 3px; color: white; font-weight: bold; font-size: 0.85em; margin-right: 8px; }
+  .sev-critical { background: #e74c3c; }
+  .sev-major { background: #f39c12; }
+  .sev-moderate { background: #3498db; }
+  .sev-minor { background: #95a5a6; }
+  code { background: #e8e8e8; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+  table { border-collapse: collapse; width: 100%; margin: 15px 0; font-size: 0.92em; }
+  th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+  th { background: #2c3e50; color: white; }
+  tr:nth-child(even) { background: #ecf0f1; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  .file-ref { font-family: monospace; color: #8e44ad; }
+  .recommendation { background: #d5f5e3; border-left: 4px solid #27ae60; padding: 10px; margin: 10px 0; }
+  .summary-box { background: #f9ebea; border: 1px solid #e74c3c; border-radius: 8px; padding: 15px; margin: 15px 0; }
+  pre { background: #2c3e50; color: #ecf0f1; padding: 12px; border-radius: 5px; overflow-x: auto; font-size: 0.88em; }
+</style>
+</head>
+<body>
+
+<h1>Code Issues Report: Traffic Officers Productivity Project</h1>
+<p><em>Generated: March 16, 2026</em></p>
+
+<div class="summary-box">
+<strong>Summary:</strong> This report identifies <strong>5 critical</strong>, <strong>7 major</strong>, <strong>5 moderate</strong>, and <strong>4 minor</strong> issues. The most impactful problems are: (1) massive code duplication across <code>analysis/</code> and <code>analysis_network/</code>, (2) duplicated data preparation logic within <code>analysis/</code>, (3) near-identical network construction files, (4) broken/incomplete scripts, and (5) hardcoded paths and magic numbers throughout.
+</div>
+
+<!-- ============================================================ -->
+<h2>Critical Issues</h2>
+
+<!-- Issue 1 -->
+<div class="critical">
+<span class="severity sev-critical">CRITICAL</span> <strong>1. Entire <code>analysis_network/</code> Directory is a Near-Duplicate of <code>analysis/</code></strong>
+
+<p>17 files in <code>analysis_network/</code> are near-copies of their counterparts in <code>analysis/</code>. The only systematic difference is the data path prefix (<code>analysis_network/data/</code> vs <code>analysis/data/</code>). Both directories maintain their own <code>data/</code> subdirectory with parallel output files.</p>
+
+<p><strong>Files duplicated:</strong> <code>00_01</code>, <code>00_02</code>, <code>02_00</code>, <code>02_00b</code>, <code>02_01</code>, <code>02_02</code>, <code>02_03</code>, <code>02_04</code>, <code>02_06</code>, <code>03_00</code>, <code>03_01</code>, <code>03_02</code>, <code>03_03</code>, <code>03_04</code>, <code>03_99</code></p>
+
+<p><strong>Risk:</strong> Any bug fix or improvement must be applied in two places. Divergence between the two copies is likely and hard to detect.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Parameterize the analysis scripts to accept a data path or network definition as an argument. Use a single set of scripts with a configuration switch (e.g., <code>data_dir &lt;- "analysis/data/"</code> set at the top or passed via command line). Delete the duplicate directory.
+</div>
+</div>
+
+<!-- Issue 2 -->
+<div class="critical">
+<span class="severity sev-critical">CRITICAL</span> <strong>2. <code>01_00_facts.R</code> Re-implements <code>00_02_mk_estimation_sample.R</code> Inline</strong>
+
+<p><span class="file-ref">analysis/01_00_facts.R</span> lines 15-81 contain a near-verbatim copy of the data preparation logic from <code>00_02_mk_estimation_sample.R</code>. The stated reason (line 15) is "re-running to not exclude the 0 ot officers," but this creates two divergent copies of the same processing pipeline.</p>
+
+<p><strong>Specific differences:</strong></p>
+<ul>
+<li><code>01_00_facts.R</code> does not filter out officers with <code>is.na(safety_ability)</code></li>
+<li>Both scripts independently read the raw anonymized data to add bereavement/FMLA flags</li>
+<li>Both independently construct holiday indicators using <code>almanac</code></li>
+</ul>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Add a parameter to <code>00_02</code> to optionally keep all officers. Or create a separate "full sample" .rds. Then have <code>01_00</code> read the saved data file instead of re-running all the logic.
+</div>
+</div>
+
+<!-- Issue 3 -->
+<div class="critical">
+<span class="severity sev-critical">CRITICAL</span> <strong>3. Network Construction Files are 95%+ Identical</strong>
+
+<p><code>mkdata/01_06_mk_network.R</code>, <code>mkdata/01_07_mk_network_30.R</code>, and <code>mkdata/01_08_mk_network_180.R</code> are nearly identical &mdash; the only differences are:</p>
+<ul>
+<li>The input CSV filename (<code>01_03_pre_network_90.csv</code> vs <code>_30.csv</code> vs <code>_180.csv</code>)</li>
+<li>The output RDS filename</li>
+<li><code>01_06</code> additionally computes <code>wheel_nothave_degree</code> (absent from 01_07, 01_08)</li>
+<li><code>01_07</code> and <code>01_08</code> omit the <code>to_replace</code> naming bugfix present in <code>01_06</code></li>
+</ul>
+
+<p>Each file is ~240 lines of complex matrix operations and circular statistics functions copied verbatim. The helper functions (<code>circ_mean</code>, <code>circ_mean2</code>, <code>circ_median2</code>, <code>circ_median2_exc</code>) are defined identically in all three files.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Extract into a single parameterized script or function library. Pass the rolling window size as an argument. The shared helper functions should be in a utility file.
+</div>
+</div>
+
+<!-- Issue 4 -->
+<div class="critical">
+<span class="severity sev-critical">CRITICAL</span> <strong>4. Scripts Contain <code>---</code> Section Separators That Would Cause Parse Errors</strong>
+
+<p><span class="file-ref">mkdata/01_04_mk_names.R</span> (lines 87, 96, 104, 113) and <span class="file-ref">mkdata/01_04b_mk_names_nodups.R</span> (lines 82, 91, 99, 108) contain bare <code>---</code> lines that are not valid R syntax. These scripts cannot be sourced or run as-is.</p>
+
+<p>The code following the first <code>---</code> also references variables (<code>annual_tot_comp</code>, <code>totaling_group</code>) that are not defined in the preceding code, suggesting these are disconnected code fragments pasted together.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Remove the broken sections or convert to properly delimited code blocks. Consider rewriting as a clean, single-purpose script.
+</div>
+</div>
+
+<!-- Issue 5 -->
+<div class="critical">
+<span class="severity sev-critical">CRITICAL</span> <strong>5. <code>01_04_mk_names.R</code> Overwrites Output Without Warning</strong>
+
+<p>Line 84-85 writes two different datasets to the same file <code>mkdata/data/01_04_mk_check.csv</code> in sequence:</p>
+<pre>
+write.csv(pay_semi_agg[employee_name=='EMPLOYEE 432'],"mkdata/data/01_04_mk_check.csv")
+write.csv(pay_recs[employee_name=='EMPLOYEE 373'],"mkdata/data/01_04_mk_check.csv")
+</pre>
+<p>The second write silently overwrites the first. This is almost certainly a bug.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Use distinct filenames for each output, or combine into one write.
+</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Major Issues</h2>
+
+<!-- Issue 6 -->
+<div class="major">
+<span class="severity sev-major">MAJOR</span> <strong>6. Inconsistent <code>wheel_nothave_degree</code> Computation Across Network Windows</strong>
+
+<p><code>01_06_mk_network.R</code> (90-day) computes <code>wheel_nothave_degree</code> and <code>l_wheel_nothave_degree</code> (lines 183-225), which measure connectedness weighted by distance from NOT having the wheel. This variable is used in the estimation sample (<code>00_02</code>) as <code>demanders_interacted</code>.</p>
+
+<p>However, <code>01_07_mk_network_30.R</code> and <code>01_08_mk_network_180.R</code> do NOT compute this variable. If the 30-day or 180-day panels are used for analysis, <code>l_wheel_nothave_degree</code> will be missing.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Either add the computation to the 30/180-day scripts, or document that only the 90-day panel supports the full estimation specification. Best solution: unify into one parameterized script.
+</div>
+</div>
+
+<!-- Issue 7 -->
+<div class="major">
+<span class="severity sev-major">MAJOR</span> <strong>7. Raw Data Read Directly in Analysis Scripts</strong>
+
+<p>Multiple analysis scripts bypass the processed data pipeline and read the raw anonymized file directly:</p>
+<ul>
+<li><span class="file-ref">analysis/00_02_mk_estimation_sample.R</span> line 52: reads <code>mkdata/20170803_payworkers_comp/anonymized_data_073117.txt</code></li>
+<li><span class="file-ref">analysis/01_00_facts.R</span> line 64: same</li>
+<li><span class="file-ref">analysis/04_00_elasticity_did.R</span> line 7: same</li>
+<li><span class="file-ref">mkdata/01_04b_mk_names_nodups.R</span> line 33: same</li>
+</ul>
+
+<p>This creates fragile dependencies on the raw data location and bypasses the data-cleaning pipeline (which processes the same file through Stata in <code>01_01_mk_working.do</code>).</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Extract the bereavement/FMLA flag construction into <code>mkdata/</code> as a proper data preparation step. Analysis files should only read processed intermediate files.
+</div>
+</div>
+
+<!-- Issue 8 -->
+<div class="major">
+<span class="severity sev-major">MAJOR</span> <strong>8. <code>01_06b_mk_network_volunteers.R</code> Has No Final Save</strong>
+
+<p>This 79-line script reads <code>01_06_panel_working.rds</code>, runs k-means twice to identify volunteer OT participants, and reconstructs the wheel for volunteers only. But it never saves any output. The final lines just print a cross-tabulation. The <code>all_pairs</code> object with the new columns is lost.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Either save the output (volunteer flags and reconstructed wheel) to an RDS file, or move this into an analysis script if it's purely diagnostic.
+</div>
+</div>
+
+<!-- Issue 9 -->
+<div class="major">
+<span class="severity sev-major">MAJOR</span> <strong>9. Google Maps API Key Handling</strong>
+
+<p><span class="file-ref">mkdata/00_01_mk_collisions.R</span> line 7 has <code>key&lt;-</code> commented out, and the script uses <code>key</code> on line 39 without defining it. Running this script requires manually uncommenting and entering an API key. The key is not loaded from an environment variable or config file.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Use <code>Sys.getenv("GOOGLE_MAPS_API_KEY")</code> or a <code>.Renviron</code> file. Never hardcode or comment-toggle API keys.
+</div>
+</div>
+
+<!-- Issue 10 -->
+<div class="major">
+<span class="severity sev-major">MAJOR</span> <strong>10. <code>03_99_compare_sims.R</code> References a File Produced by an Old/Archived Script</strong>
+
+<p>Line 60 reads <code>analysis/data/03_00_sim_frontier_cluster.rds</code>, but no active script in <code>analysis/</code> produces this file. The file <code>analysis/old/03_00_sim_frontier_cluster.R</code> exists in the archived directory but is not part of the current pipeline. If this file is deleted or becomes stale, the main comparison script will fail.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Move the frontier simulation script out of <code>old/</code> back into the active pipeline, or replace the dependency with a currently active computation.
+</div>
+</div>
+
+<!-- Issue 11 -->
+<div class="major">
+<span class="severity sev-major">MAJOR</span> <strong>11. Slow O(n&sup2;) Loop in Collision Distance Computation</strong>
+
+<p><span class="file-ref">mkdata/00_01_mk_collisions.R</span> lines 86-100 use nested <code>for</code> loops to compute the minimum Haversine distance from each collision to all special events on that date. With potentially thousands of collisions and events, this is extremely slow.</p>
+
+<pre>
+for (i in unique(collide$id_this)){
+  ...
+  for (j in unique(uniq_coords[analysis_workdate==this_date,]$id_that)){
+    check_dist&lt;-distHaversine(coords, c(...))
+    max_now&lt;- min(max_now, check_dist)
+  }
+  collide_list[i]&lt;-max_now
+}
+</pre>
+
+<p>Additionally, <code>collide_list</code> is pre-allocated with length <code>nrow(uniq_coords)</code> but indexed by <code>collide$id_this</code>, which is a different object. This works only because <code>id_this</code> is 1:N sequential.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Vectorize using <code>sf::st_distance()</code> or <code>geodist::geodist()</code> with date-grouped joins.
+</div>
+</div>
+
+<!-- ============================================================ -->
+<h2>Moderate Issues</h2>
+
+<!-- Issue 12 -->
+<div class="moderate">
+<span class="severity sev-moderate">MODERATE</span> <strong>12. No Package Management or Dependency Declaration</strong>
+
+<p>There is no <code>renv.lock</code>, <code>DESCRIPTION</code> file, or <code>Makefile</code> declaring package dependencies. The project uses ~30 R packages and Stata SSC packages (<code>unique</code>, <code>rangestat</code>). Reproducing the exact environment is impossible without reading every script.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Add an <code>renv</code> lockfile for R package versions. For Stata, document required SSC packages. Consider a <code>Makefile</code> or <code>targets</code> pipeline to declare the full DAG.
+</div>
+</div>
+
+<!-- Issue 13 -->
+<div class="moderate">
+<span class="severity sev-moderate">MODERATE</span> <strong>13. Hardcoded Assertion Values Will Break If Data Changes</strong>
+
+<p>Multiple scripts contain hardcoded values in assertions that assume specific data properties:</p>
+<ul>
+<li><code>analysis/00_01</code> line 63: <code>stopifnot(length(all_not_id)==33)</code></li>
+<li><code>analysis/01_00</code> line 100: <code>stopifnot(nrow(all_pairs)==274908)</code></li>
+<li><code>analysis/01_00</code> line 116: <code>stopifnot(nrow(byofficer)==535)</code></li>
+<li><code>mkdata/01_03</code> line 137: <code>assert r(sum)==36</code> (36 employees with no work)</li>
+<li><code>mkdata/01_02</code> line 323: <code>assert r(sum)==44</code></li>
+</ul>
+
+<p>These are useful as sanity checks for the current dataset but will break reproducibility if any upstream data changes.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Log the values as warnings rather than hard failures, or parameterize them with tolerances.
+</div>
+</div>
+
+<!-- Issue 14 -->
+<div class="moderate">
+<span class="severity sev-moderate">MODERATE</span> <strong>14. Missing Package Loads / Implicit Dependencies</strong>
+
+<p>Several scripts use functions without loading the necessary package:</p>
+<ul>
+<li><span class="file-ref">mkdata/00_01_mk_collisions.R</span>: Uses <code>fread</code>, <code>mdy</code>, <code>str_replace</code>, <code>mp_geocode</code>, <code>distHaversine</code> without any <code>library()</code> calls. Relies on packages being loaded in the global environment from a prior script.</li>
+<li><span class="file-ref">analysis/00_04_example.R</span>: Uses <code>geocode</code>, <code>st_as_sf</code>, <code>st_crs</code>, <code>st_transform</code>, <code>ggplot</code>, <code>ggsave</code> &mdash; only loads <code>osmdata</code> and <code>data.table</code>. References undefined variable <code>shape</code>.</li>
+<li><span class="file-ref">mkdata/01_05_mk_map.R</span>: Uses <code>read_sf</code>, <code>geocode</code>, <code>st_as_sf</code>, etc. without loading <code>sf</code>, <code>tidygeocoder</code>, <code>ggplot2</code>.</li>
+</ul>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Every script should be self-contained with its own <code>library()</code> calls. Do not rely on the global R environment.
+</div>
+</div>
+
+<!-- Issue 15 -->
+<div class="moderate">
+<span class="severity sev-moderate">MODERATE</span> <strong>15. <code>00_04_example.R</code> References Undefined Variable <code>shape</code></strong>
+
+<p>Line 25 references <code>st_crs(shape)</code> and line 27 references <code>shape</code>, but <code>shape</code> is never defined in this file. It appears to be a partial copy of <code>mkdata/01_05_mk_map.R</code> where <code>shape</code> is loaded from a shapefile. This script will fail if run independently.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Add the shapefile read line from <code>01_05_mk_map.R</code>, or merge this into that file.
+</div>
+</div>
+
+<!-- Issue 16 -->
+<div class="moderate">
+<span class="severity sev-moderate">MODERATE</span> <strong>16. <code>analysis/01_07_mk_network_30.R</code> Overwrites Exposure Columns In Place</strong>
+
+<p>In <code>01_07</code> (line 156-157) and <code>01_08</code> (line 156-157), the <code>fold_mult</code> result overwrites the original exposure columns:</p>
+<pre>
+to_replace&lt;-colnames(all_pairs)[grep("^[0-9]+$",colnames(all_pairs))]
+all_pairs[, (to_replace):=fold_mult(.SD), ...]
+</pre>
+<p>In contrast, <code>01_06</code> (the 90-day version) uses <code>helper_</code>-prefixed column names to avoid overwriting the originals (line 155-156). This means the 30/180-day files lose the raw exposure data after the wheel-weighting step, which could be a subtle bug if downstream code expects unweighted exposure columns.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2>Minor Issues</h2>
+
+<!-- Issue 17 -->
+<div class="major">
+<span class="severity sev-major">MAJOR</span> <strong>17. <code>analysis_network/03_01_auction_sim.R</code> Saves Outputs to Wrong Directory</strong>
+
+<p>The auction simulation in <code>analysis_network/</code> saves some outputs to <code>analysis/data/</code> instead of <code>analysis_network/data/</code>:</p>
+<ul>
+<li>Markdown auction results (<code>03_01_sim_auction_dev*.rds</code>) are saved to <code>analysis/data/</code></li>
+<li>Straight auction results (<code>03_01_sim_auction_straight*.rds</code>) are saved to <code>analysis_network/data/</code></li>
+</ul>
+<p>Similarly, <code>analysis_network/03_99_compare_sims.R</code> reads from <strong>both</strong> <code>analysis/data/</code> and <code>analysis_network/data/</code>, mixing results from the two parallel pipelines. This means the comparison script may be comparing results from different model specifications.</p>
+
+<div class="recommendation">
+<strong>Recommendation:</strong> Audit all output paths in <code>analysis_network/</code> to ensure they use a consistent data directory. This is another argument for merging the two directories.
+</div>
+</div>
+
+<!-- Issue 18 -->
+<div class="minor">
+<span class="severity sev-minor">MINOR</span> <strong>18. Inconsistent File Naming Conventions</strong>
+
+<p>Numbering gaps and inconsistencies in the file naming scheme:</p>
+<ul>
+<li>No <code>analysis/01_03_*.R</code> (gap between 01_02 and 01_04)</li>
+<li>No <code>analysis/02_05_*.R</code> (gap between 02_04 and 02_06)</li>
+<li><code>analysis/02_00b_estimate_many.R</code> uses a "b" suffix while others use sequential numbers</li>
+<li><code>mkdata/01_04b_mk_names_nodups.R</code> uses "b" suffix for an alternate version</li>
+<li>Mixed use of <code>_</code> and no separator in date-stamped directories (e.g., <code>20190811_weather</code> vs <code>20251108_llm_attempt</code>)</li>
+</ul>
+</div>
+
+<!-- Issue 18 -->
+<div class="minor">
+<span class="severity sev-minor">MINOR</span> <strong>19. Simulation Iteration Counts Are Inconsistent</strong>
+
+<p>Different simulation scripts use different iteration counts without clear justification:</p>
+<ul>
+<li><code>03_00_sim_random.R</code>: 2500 iterations</li>
+<li><code>03_01_auction_sim.R</code>: 2500 iterations</li>
+<li><code>03_02_sim_informal.R</code>: 200 iterations</li>
+<li><code>03_03_sim_informal_reverse.R</code>: likely similar to 03_02</li>
+</ul>
+<p>The informal trade simulations run with 12.5x fewer iterations, which could affect precision of the comparisons in <code>03_99</code>.</p>
+</div>
+
+<!-- Issue 19 -->
+<div class="minor">
+<span class="severity sev-minor">MINOR</span> <strong>20. <code>View()</code> Calls Left in Scripts</strong>
+
+<p><span class="file-ref">mkdata/01_04_mk_names.R</span> lines 105, 106, 110, 111 and <span class="file-ref">mkdata/01_04b_mk_names_nodups.R</span> lines 100, 101, 106 contain <code>View()</code> calls. These are interactive-only functions that will fail in batch/script mode and serve no pipeline purpose.</p>
+</div>
+
+<!-- Issue 20 -->
+<div class="minor">
+<span class="severity sev-minor">MINOR</span> <strong>21. <code>05_00_explore.R</code> Contains <code>install.packages()</code></strong>
+
+<p>Line 4 calls <code>install.packages("gender")</code> directly in the script. This should never appear in a reproducible analysis script &mdash; it modifies the system state and may fail in restricted environments or overwrite working package versions.</p>
+</div>
+
+<!-- ============================================================ -->
+<h2>Summary of Recommended Actions</h2>
+
+<table>
+<tr><th>Priority</th><th>Action</th><th>Effort</th><th>Impact</th></tr>
+<tr><td><span class="severity sev-critical">CRITICAL</span></td><td>Merge <code>analysis/</code> and <code>analysis_network/</code> into a single parameterized pipeline</td><td>High</td><td>Eliminates ~2000 lines of duplication; prevents divergence bugs</td></tr>
+<tr><td><span class="severity sev-critical">CRITICAL</span></td><td>Unify <code>01_06</code>, <code>01_07</code>, <code>01_08</code> network scripts into one parameterized script</td><td>Medium</td><td>Eliminates ~500 lines of duplication; ensures consistent computation</td></tr>
+<tr><td><span class="severity sev-critical">CRITICAL</span></td><td>Fix broken <code>---</code> separators in <code>01_04</code>/<code>01_04b</code></td><td>Low</td><td>Makes scripts runnable</td></tr>
+<tr><td><span class="severity sev-major">MAJOR</span></td><td>Extract shared data prep from <code>01_00_facts.R</code> into <code>00_02</code></td><td>Low</td><td>Single source of truth for estimation sample</td></tr>
+<tr><td><span class="severity sev-major">MAJOR</span></td><td>Move raw data reads out of analysis scripts into mkdata pipeline</td><td>Medium</td><td>Clean separation of data prep and analysis</td></tr>
+<tr><td><span class="severity sev-major">MAJOR</span></td><td>Restore <code>03_00_sim_frontier_cluster.R</code> to active pipeline</td><td>Low</td><td>Removes hidden dependency on archived code</td></tr>
+<tr><td><span class="severity sev-moderate">MODERATE</span></td><td>Add <code>renv</code> and package declarations</td><td>Low</td><td>Reproducibility</td></tr>
+<tr><td><span class="severity sev-moderate">MODERATE</span></td><td>Add <code>library()</code> calls to all scripts</td><td>Low</td><td>Scripts become self-contained</td></tr>
+<tr><td><span class="severity sev-moderate">MODERATE</span></td><td>Fix <code>00_04_example.R</code> undefined <code>shape</code> variable</td><td>Low</td><td>Script becomes runnable</td></tr>
+<tr><td><span class="severity sev-minor">MINOR</span></td><td>Remove <code>View()</code> and <code>install.packages()</code> from scripts</td><td>Low</td><td>Batch-mode compatibility</td></tr>
+</table>
+
+</body>
+</html>

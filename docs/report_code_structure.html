@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code Structure Report: Traffic Officers Productivity</title>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; max-width: 1100px; margin: 40px auto; padding: 0 20px; color: #222; line-height: 1.6; background: #fafafa; }
+  h1 { border-bottom: 3px solid #2c3e50; padding-bottom: 10px; color: #2c3e50; }
+  h2 { color: #34495e; margin-top: 40px; border-left: 4px solid #3498db; padding-left: 12px; }
+  h3 { color: #555; }
+  table { border-collapse: collapse; width: 100%; margin: 15px 0; font-size: 0.92em; }
+  th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+  th { background: #2c3e50; color: white; }
+  tr:nth-child(even) { background: #ecf0f1; }
+  .pipeline { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 20px; margin: 15px 0; }
+  .arrow { text-align: center; font-size: 1.8em; color: #3498db; margin: 5px 0; }
+  .box { background: #eaf2f8; border: 1px solid #3498db; border-radius: 5px; padding: 10px 15px; margin: 5px 0; }
+  .box-old { background: #fdebd0; border: 1px solid #e67e22; border-radius: 5px; padding: 10px 15px; margin: 5px 0; }
+  .box-dup { background: #fadbd8; border: 1px solid #e74c3c; border-radius: 5px; padding: 10px 15px; margin: 5px 0; }
+  code { background: #e8e8e8; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+  .lang-r { color: #2980b9; font-weight: bold; }
+  .lang-stata { color: #8e44ad; font-weight: bold; }
+  .note { background: #fef9e7; border-left: 4px solid #f1c40f; padding: 10px; margin: 10px 0; }
+  .summary-box { background: #d5f5e3; border: 1px solid #27ae60; border-radius: 8px; padding: 15px; margin: 15px 0; }
+  ul { padding-left: 20px; }
+  li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<h1>Code Structure Report: Traffic Officers Productivity Project</h1>
+<p><em>Generated: March 16, 2026</em></p>
+
+<div class="summary-box">
+<strong>Project Overview:</strong> This project studies overtime allocation among LADOT Traffic Officer IIs, estimating how informal trading networks and a seniority-based "wheel" system determine who works overtime shifts. It estimates a structural model of overtime participation, recovers officer valuations, and simulates counterfactual allocation mechanisms (auctions, random assignment). The codebase spans <strong>R</strong> and <strong>Stata</strong> across three main directories, plus a near-duplicate <code>analysis_network/</code> directory.
+</div>
+
+<h2>1. Directory Structure</h2>
+
+<table>
+<tr><th>Directory</th><th>Purpose</th><th>File Count (active)</th><th>Languages</th></tr>
+<tr><td><code>mkdata/</code></td><td>Raw data ingestion, cleaning, panel construction, network building</td><td>13 + 5 subdirectory scripts</td><td><span class="lang-r">R</span>, <span class="lang-stata">Stata</span></td></tr>
+<tr><td><code>analysis/</code></td><td>Main analysis: productivity, estimation, simulation, figures/tables</td><td>31 active scripts</td><td><span class="lang-r">R</span></td></tr>
+<tr><td><code>analysis_network/</code></td><td>Near-duplicate of <code>analysis/</code> using network-based definition</td><td>17 scripts</td><td><span class="lang-r">R</span></td></tr>
+<tr><td><code>analysis/old/</code></td><td>Archived/deprecated scripts</td><td>~25 scripts</td><td><span class="lang-r">R</span></td></tr>
+<tr><td><code>mkdata/old/</code></td><td>Archived data scripts</td><td>2 scripts</td><td><span class="lang-r">R</span></td></tr>
+</table>
+
+<h2>2. Full Pipeline: Data Construction (<code>mkdata/</code>)</h2>
+
+<div class="pipeline">
+
+<h3>Stage 0: External Data Processing</h3>
+<div class="box">
+<strong><code>00_01_mk_collisions.R</code></strong> <span class="lang-r">R</span><br>
+<em>Purpose:</em> Process collision and special event data; geocode special events; compute minimum distance from each collision to nearest special event.<br>
+<em>Inputs:</em> BSS special event permits CSV, traffic collision CSV, manual lat/long fixes<br>
+<em>Outputs:</em> <code>mkdata/data/00_01_special_events_with_coords.rds</code>, <code>mkdata/data/00_01_collisions_with_mindist.rds</code><br>
+<em>Packages:</em> data.table, stringr, lubridate, mapsapi, geosphere<br>
+<em>Note:</em> Requires Google Maps API key stored in <code>key</code> variable.
+</div>
+
+<div class="box">
+<strong><code>00_02_mk_tickets.R</code></strong> <span class="lang-r">R</span><br>
+<em>Purpose:</em> Process parking citation data; map agency descriptions to clean division names; aggregate to division-date level.<br>
+<em>Inputs:</em> Parking citations CSV (2015-01 to 2016-06)<br>
+<em>Outputs:</em> <code>mkdata/data/00_02_tickets.rds</code><br>
+<em>Packages:</em> data.table, lubridate
+</div>
+
+<div class="box">
+<strong><code>00_03_mk_final_work.R</code></strong> <span class="lang-r">R</span><br>
+<em>Purpose:</em> Extract work order data from a 4,591-page PDF using table extraction.<br>
+<em>Inputs:</em> <code>mkdata/20251204_finalwork/CPRA Request #25-16665.pdf</code><br>
+<em>Outputs:</em> <code>mkdata/data/final_work_10years.rds</code><br>
+<em>Packages:</em> tabulapdf, rJava, data.table
+</div>
+
+<div class="arrow">&darr;</div>
+
+<h3>Stage 1: Core Panel Construction</h3>
+
+<div class="box">
+<strong><code>01_01_mk_working.do</code></strong> <span class="lang-stata">Stata</span><br>
+<em>Purpose:</em> Reshape anonymized pay/workers comp data; separate employee info from injury records and pay records.<br>
+<em>Inputs:</em> <code>20170803_payworkers_comp/data/anonymized_data_073117</code>, <code>out/list_var_desc.csv</code><br>
+<em>Outputs:</em> <code>data/employee_data.dta</code>, <code>data/workers_comp.dta</code>, <code>data/pay_data.dta</code>
+</div>
+
+<div class="arrow">&darr;</div>
+
+<div class="box">
+<strong><code>01_02_mk_expanded_pay.do</code></strong> <span class="lang-stata">Stata</span><br>
+<em>Purpose:</em> Expand pay data to daily panel; collapse work/leave/OT hours; merge injuries, weather, holidays; handle terminations.<br>
+<em>Inputs:</em> <code>data/pay_data.dta</code>, <code>data/employee_data.dta</code>, <code>data/workers_comp.dta</code>, weather data, holidays data, raw anonymized file<br>
+<em>Outputs:</em> <code>data/working_expanded.dta</code>, <code>data/01_02_fornetwork.dta</code>
+</div>
+
+<div class="arrow">&darr;</div>
+
+<div class="box">
+<strong><code>01_03_mk_pre_network.do</code></strong> <span class="lang-stata">Stata</span><br>
+<em>Purpose:</em> Create rolling-window exposure matrices (30, 90, 180, 1000 days) measuring pairwise co-working time. Add tenure, age, seniority rank.<br>
+<em>Inputs:</em> <code>data/working_expanded.dta</code>, <code>data/01_02_fornetwork.dta</code>, <code>data/employee_data.dta</code>, <code>data/pay_data.dta</code><br>
+<em>Outputs:</em> <code>data/01_03_pre_network_30.csv</code>, <code>data/01_03_pre_network_90.csv</code>, <code>data/01_03_pre_network_180.csv</code>, <code>data/01_03_pre_network_1000.csv</code>
+</div>
+
+<div class="arrow">&darr;</div>
+
+<h3>Stage 1b: Name Matching (De-anonymization Attempt)</h3>
+
+<div class="box">
+<strong><code>01_04_mk_names.R</code></strong> <span class="lang-r">R</span><br>
+<em>Purpose:</em> Match anonymized employee IDs to real names via Transparent California salary data by matching on total compensation.<br>
+<em>Inputs:</em> Transparent California CSV, <code>data/pay_data.dta</code>, <code>data/employee_data.dta</code>, <code>out/var_desc_coded_alt.csv</code><br>
+<em>Note:</em> Contains <code>---</code> section separators (appears to be incomplete/scratch code).
+</div>
+
+<div class="box">
+<strong><code>01_04b_mk_names_nodups.R</code></strong> <span class="lang-r">R</span><br>
+<em>Purpose:</em> Same as 01_04 but reads raw anonymized text file directly instead of Stata-processed <code>.dta</code>. Also contains <code>---</code> separators.
+</div>
+
+<div class="arrow">&darr;</div>
+
+<h3>Stage 1c: Geographic Mapping</h3>
+
+<div class="box">
+<strong><code>01_05_mk_map.R</code></strong> <span class="lang-r">R</span><br>
+<em>Purpose:</em> Create LA map with LADOT enforcement districts and parking office locations using OSM data.<br>
+<em>Inputs:</em> Raw anonymized data, shapefile of enforcement districts, <code>data/01_05_list_complete.csv</code><br>
+<em>Outputs:</em> <code>out/figures/01_05_la_street_map.png</code><br>
+<em>Packages:</em> sf, ggplot2, osmdata, tidygeocoder
+</div>
+
+<div class="arrow">&darr;</div>
+
+<h3>Stage 1d: Network Construction</h3>
+
+<div class="box">
+<strong><code>01_06_mk_network.R</code></strong> <span class="lang-r">R</span><br>
+<em>Purpose:</em> Core network construction using 90-day exposure window. Computes degree centrality, circular median of seniority wheel, wheel-weighted connectedness, "not-have" degree, expected earnings.<br>
+<em>Inputs:</em> <code>data/01_03_pre_network_90.csv</code><br>
+<em>Outputs:</em> <code>data/01_06_panel_working.rds</code> &mdash; the primary analysis dataset<br>
+<em>Packages:</em> data.table, lubridate, circular, qgraph, igraph, ClusTorus
+</div>
+
+<div class="box">
+<strong><code>01_06b_mk_network_volunteers.R</code></strong> <span class="lang-r">R</span><br>
+<em>Purpose:</em> Identify voluntary OT participants using k-means clustering on (correlation with wheel, OT frequency). Reconstruct wheel using only volunteers.<br>
+<em>Inputs:</em> <code>data/01_06_panel_working.rds</code><br>
+<em>Note:</em> Does not appear to save a final output file; may be exploratory.
+</div>
+
+<div class="box">
+<strong><code>01_07_mk_network_30.R</code></strong> <span class="lang-r">R</span><br>
+<em>Purpose:</em> Same as 01_06 but with 30-day rolling window.<br>
+<em>Outputs:</em> <code>data/01_07_panel_working_30.rds</code>
+</div>
+
+<div class="box">
+<strong><code>01_08_mk_network_180.R</code></strong> <span class="lang-r">R</span><br>
+<em>Purpose:</em> Same as 01_06 but with 180-day rolling window.<br>
+<em>Outputs:</em> <code>data/01_08_panel_working_180.rds</code>
+</div>
+
+<h3>Auxiliary/One-off Scripts</h3>
+
+<div class="box">
+<strong><code>20190811_weather/process_weather.do</code></strong> &mdash; Processes NOAA weather data.<br>
+<strong><code>20190814_fed_holidays/process_holidays.do</code></strong> &mdash; Creates federal holiday indicator file.<br>
+<strong><code>20251105_2016_publicrecords/convert_rds_to_csv.R</code></strong> &mdash; Converts RDS to CSV.<br>
+<strong><code>20251108_llm_attempt/concat_files.R</code></strong> &mdash; Concatenates PDF text files for LLM processing.<br>
+<strong><code>find_emps.R</code></strong> &mdash; Utility to find specific employees in data.
+</div>
+
+</div>
+
+<h2>3. Full Pipeline: Analysis (<code>analysis/</code>)</h2>
+
+<div class="pipeline">
+
+<h3>Stage 00: Data Preparation for Analysis</h3>
+
+<div class="box">
+<strong><code>00_01_individual_productivity.R</code></strong><br>
+<em>Purpose:</em> Recover individual officer safety productivity (traffic direction skill) using Bonhomme-style group decomposition. Officers assigned to OT shifts near special events; net out time/size FEs; solve linear system for individual contributions.<br>
+<em>Inputs:</em> <code>mkdata/data/01_03_pre_network_90.csv</code>, <code>mkdata/data/00_01_collisions_with_mindist.rds</code><br>
+<em>Outputs:</em> <code>analysis/data/00_01_individual_productivity.rds</code>
+</div>
+
+<div class="arrow">&darr;</div>
+
+<div class="box">
+<strong><code>00_02_mk_estimation_sample.R</code></strong><br>
+<em>Purpose:</em> <strong>Creates the central estimation sample</strong>. Reads 90-day network panel, drops post-injury recovery days, attaches productivity, holiday indicators, bereavement/FMLA flags from raw data. Constructs key analysis variables (opp_dist, suppliers_interacted, ot_rate).<br>
+<em>Inputs:</em> <code>mkdata/data/01_06_panel_working.rds</code>, <code>analysis/data/00_01_individual_productivity.rds</code>, raw anonymized data<br>
+<em>Outputs:</em> <code>analysis/data/00_02_estimation_sample.rds</code> &mdash; <strong>nearly every downstream file reads this</strong>
+</div>
+
+<div class="arrow">&darr;</div>
+
+<div class="box">
+<strong><code>00_03_comp_earnings.R</code></strong> &mdash; Validates estimated OT pay against raw OT pay records.<br>
+<strong><code>00_04_example.R</code></strong> &mdash; Creates example map figure for a specific zip code area.<br>
+<strong><code>00_05_save_csv.R</code></strong> &mdash; Exports estimation sample subset to CSV for Stata; runs a flexmix mixture model.
+</div>
+
+<div class="arrow">&darr;</div>
+
+<h3>Stage 01: Descriptive Facts and Event Studies</h3>
+
+<div class="box">
+<strong><code>01_00_facts.R</code></strong> (460+ lines)<br>
+<em>Purpose:</em> <strong>Major descriptive analysis file.</strong> Re-runs data preparation from 00_02 (including all officers, not just those with productivity). Generates summary statistics, wheel turning plots, OT dispersion, network visualizations, buyer/seller classification, residualized relevance plots.<br>
+<em>Outputs:</em> Many tables (<code>out/tables/01_00_*.tex</code>) and figures (<code>out/figures/01_00_*.png</code>)<br>
+<em>Note:</em> Re-reads raw data and re-does 00_02 processing inline rather than reading the saved estimation sample.
+</div>
+
+<div class="box">
+<strong><code>01_01_facts_30_180.R</code></strong> &mdash; Robustness: repeats some descriptive facts using 30-day and 180-day network windows.<br>
+<strong><code>01_02_lag_check.R</code></strong> &mdash; Checks lag structure in the panel.
+</div>
+
+<div class="box">
+<strong><code>01_04_termination_did.R</code></strong> &mdash; DiD event study: effect of officer termination on connected officers' OT.<br>
+<strong><code>01_05_new_hire.R</code></strong> &mdash; DiD event study: effect of new hires on connected officers' OT.<br>
+<strong><code>01_06_fmla.R</code></strong> / <strong><code>01_06b_own_fmla.R</code></strong> &mdash; DiD: FMLA leave effect on peer and own OT.<br>
+<strong><code>01_07_bereave.R</code></strong> / <strong><code>01_07b_own_bereave.R</code></strong> &mdash; DiD: bereavement leave effect on peer and own OT.
+</div>
+
+<div class="arrow">&darr;</div>
+
+<h3>Stage 02: Structural Estimation</h3>
+
+<div class="box">
+<strong><code>02_00_estimate.R</code></strong><br>
+<em>Purpose:</em> <strong>Core structural estimation.</strong> Estimates bias-corrected logit with two-way FEs (officer + date) for OT participation as a function of wheel distance, wheel-weighted connectedness, OT wage, seniority, normal work.<br>
+<em>Inputs:</em> <code>analysis/data/00_02_estimation_sample.rds</code><br>
+<em>Outputs:</em> <code>analysis/data/02_00_estimate.Rdata</code>, <code>analysis/data/02_00_estimate_probit.Rdata</code><br>
+<em>Package:</em> alpaca (bias-corrected FE GLM)
+</div>
+
+<div class="box">
+<strong><code>02_00b_estimate_many.R</code></strong> &mdash; Runs many alternative specifications for robustness.<br>
+<strong><code>02_01_display.R</code></strong> &mdash; Formats and displays estimates; creates tables, FE distributions, access cost computation.<br>
+<strong><code>02_02_validate_valuations.R</code></strong> &mdash; Validates date FEs against weather, holidays, special events.<br>
+<strong><code>02_03_cartel_age.R</code></strong> &mdash; Characterizes "cartel" officers (300+ OT shifts) by demographics.<br>
+<strong><code>02_04_decomp_pref_network.R</code></strong> &mdash; Decomposes OT variation into preference vs network components.<br>
+<strong><code>02_06_estimate_heterogenous.R</code></strong> &mdash; Heterogeneous treatment effects estimation.<br>
+<strong><code>02_07_labor_supply.R</code></strong> &mdash; Labor supply analysis.
+</div>
+
+<div class="arrow">&darr;</div>
+
+<h3>Stage 03: Counterfactual Simulations</h3>
+
+<div class="box">
+<strong><code>03_00_sim_random.R</code></strong> &mdash; Benchmark: randomly assign OT shifts (2500 iterations).<br>
+<em>Outputs:</em> <code>03_00_sim_random.rds</code>, <code>03_00_sim_random_byworker.rds</code>
+</div>
+
+<div class="box">
+<strong><code>03_01_auction_sim.R</code></strong> &mdash; Simulates two auction mechanisms: (1) deviation-from-base-rate auction and (2) straight shift auction. Both are k+1 price auctions (2500 iterations each).<br>
+<em>Outputs:</em> <code>03_01_sim_auction_dev*.rds</code>, <code>03_01_sim_auction_straight*.rds</code>
+</div>
+
+<div class="box">
+<strong><code>03_02_sim_informal.R</code></strong> &mdash; Simulates informal trading (status quo mechanism) with varying access cost multipliers.<br>
+<strong><code>03_03_sim_informal_reverse.R</code></strong> &mdash; Same with reversed access cost sign.<br>
+<strong><code>03_04_sim_informal_perfect.R</code></strong> &mdash; Same with positive (facilitating) access costs.
+</div>
+
+<div class="box">
+<strong><code>03_98_heatmap.R</code></strong> &mdash; Creates heatmap visualizations.<br>
+<strong><code>03_99_compare_sims.R</code></strong> &mdash; <strong>Main comparison across all simulation regimes.</strong> Creates equity-efficiency frontier plot, histogram comparisons, cartel impact table, access cost robustness. Reads frontier data from <code>03_00_sim_frontier_cluster.rds</code> (produced by old script).
+</div>
+
+<div class="arrow">&darr;</div>
+
+<h3>Stage 04-05: Extensions</h3>
+
+<div class="box">
+<strong><code>04_00_elasticity_did.R</code></strong> &mdash; Exploits salary step increases as wage shocks for labor supply elasticity DiD.<br>
+<strong><code>05_00_explore.R</code></strong> &mdash; Exploratory: gender/race prediction from work order names.
+</div>
+
+</div>
+
+<h2>4. The <code>analysis_network/</code> Directory</h2>
+
+<div class="box-dup">
+<strong>This is a near-complete duplicate of <code>analysis/</code></strong> with 17 files that mirror files in <code>analysis/</code>. The key difference is that some files use a network-based definition of the estimation sample (using <code>analysis_network/data/</code> instead of <code>analysis/data/</code>). It contains its own <code>00_01</code>, <code>00_02</code>, <code>02_00</code>&ndash;<code>02_06</code>, <code>03_00</code>&ndash;<code>03_99</code> files. Additionally contains <code>00_03_event_studies.R</code> and <code>heatmap.R</code> not found in main analysis.
+</div>
+
+<h2>5. Data Flow Dependency Graph</h2>
+
+<table>
+<tr><th>Key Dataset</th><th>Created By</th><th>Used By</th></tr>
+<tr><td><code>employee_data.dta</code></td><td>01_01_mk_working.do</td><td>01_02, 01_03</td></tr>
+<tr><td><code>pay_data.dta</code></td><td>01_01_mk_working.do</td><td>01_02, 01_03, 01_04</td></tr>
+<tr><td><code>workers_comp.dta</code></td><td>01_01_mk_working.do</td><td>01_02</td></tr>
+<tr><td><code>working_expanded.dta</code></td><td>01_02_mk_expanded_pay.do</td><td>01_03</td></tr>
+<tr><td><code>01_03_pre_network_90.csv</code></td><td>01_03_mk_pre_network.do</td><td>01_06, analysis/00_01, analysis/00_03, analysis/01_00</td></tr>
+<tr><td><code>01_06_panel_working.rds</code></td><td>01_06_mk_network.R</td><td>analysis/00_02, analysis/01_00, 01_06b</td></tr>
+<tr><td><code>00_01_individual_productivity.rds</code></td><td>analysis/00_01</td><td>analysis/00_02, analysis/01_00</td></tr>
+<tr><td><strong><code>00_02_estimation_sample.rds</code></strong></td><td><strong>analysis/00_02</strong></td><td><strong>Nearly all analysis/01_*&ndash;03_* scripts</strong></td></tr>
+<tr><td><code>02_00_estimate.Rdata</code></td><td>analysis/02_00</td><td>02_01, 02_02, 02_03, 02_04, 03_00&ndash;03_99</td></tr>
+</table>
+
+<h2>6. Package Dependencies</h2>
+
+<table>
+<tr><th>Package</th><th>Used In</th><th>Purpose</th></tr>
+<tr><td>data.table</td><td>Nearly all R files</td><td>Data manipulation</td></tr>
+<tr><td>lubridate</td><td>Nearly all R files</td><td>Date handling</td></tr>
+<tr><td>alpaca</td><td>02_00, 02_01, 02_02, 02_04, 03_*</td><td>Bias-corrected FE GLM (core estimation)</td></tr>
+<tr><td>fixest</td><td>00_01, 01_00, 02_02, 02_04, 01_04&ndash;01_07</td><td>Fixed effects linear models</td></tr>
+<tr><td>did2s</td><td>01_04&ndash;01_07</td><td>Two-stage DiD estimation</td></tr>
+<tr><td>circular, ClusTorus</td><td>01_06, 01_07, 01_08</td><td>Circular statistics for wheel</td></tr>
+<tr><td>igraph, qgraph</td><td>01_06, 01_00</td><td>Network analysis and visualization</td></tr>
+<tr><td>ggplot2</td><td>Many</td><td>Plotting</td></tr>
+<tr><td>kableExtra</td><td>01_00, 02_01, 02_02, 03_99</td><td>LaTeX table formatting</td></tr>
+<tr><td>stargazer</td><td>01_00</td><td>Summary statistics tables</td></tr>
+<tr><td>tabulapdf, rJava</td><td>00_03_mk_final_work</td><td>PDF table extraction</td></tr>
+<tr><td>sf, osmdata</td><td>01_05_mk_map, 00_04_example</td><td>Spatial data and mapping</td></tr>
+<tr><td>flexmix</td><td>00_05_save_csv</td><td>Mixture model (exploratory)</td></tr>
+<tr><td>gender, predictrace</td><td>05_00_explore</td><td>Name-based demographic prediction</td></tr>
+</table>
+
+<h2>7. Output Structure</h2>
+
+<p>All outputs go to <code>analysis/out/</code>:</p>
+<ul>
+<li><code>analysis/out/tables/</code> &mdash; LaTeX tables (<code>.tex</code>): summary stats, estimation results, simulation comparisons, cartel impacts</li>
+<li><code>analysis/out/figures/</code> &mdash; PNG figures: network plots, histograms, binscatters, equity-efficiency frontiers, event studies</li>
+<li><code>mkdata/out/</code> &mdash; Intermediate diagnostics, CSVs, map figures</li>
+</ul>
+
+</body>
+</html>
