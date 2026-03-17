@@ -155,7 +155,7 @@ get_network_output_path <- function(window, config = CONFIG) {
 load_contact_matrix <- function(window = CONFIG$network_window_default) {
   panel_path <- get_network_output_path(window)
   if (!file.exists(panel_path)) stop("Panel not found: ", panel_path)
-  dt <- readRDS(panel_path)
+  dt <- data.table::as.data.table(readRDS(panel_path))
   id_cols <- grep("^[0-9]+$", names(dt), value = TRUE)
   if (length(id_cols) == 0) {
     ## Contact matrix was cleaned from panel; load from pre-network CSV

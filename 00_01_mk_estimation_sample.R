@@ -136,6 +136,11 @@ all_pairs <- merge(all_pairs,
 
 setorder(all_pairs, "num_emp1", "analysis_workdate")
 
+## Drop contact matrix columns (numeric officer-ID columns from panel);
+## scripts that need the contact matrix load it via load_contact_matrix()
+contact_cols <- grep("^[0-9]+$", names(all_pairs), value = TRUE)
+if (length(contact_cols) > 0) all_pairs[, (contact_cols) := NULL]
+
 output_path <- file.path(CONFIG$data_dir, "00_01_estimation_sample.rds")
 ensure_directory(dirname(output_path))
 saveRDS(all_pairs, output_path)
