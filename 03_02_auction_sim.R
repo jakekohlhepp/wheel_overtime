@@ -4,13 +4,13 @@
 #' Simulate a k-wage auction, where officers bid for shifts each day.
 #' Includes both deviation-from-base and straight shift auction variants.
 #' Input:  file.path(CONFIG$data_dir, "02_00_estimate.Rdata")
-#'         file.path(CONFIG$data_dir, "00_02_estimation_sample.rds")
-#' Output: file.path(CONFIG$data_dir, "03_01_sim_auction_dev.rds")
-#'         file.path(CONFIG$data_dir, "03_01_sim_auction_dev_markdown.rds")
-#'         file.path(CONFIG$data_dir, "03_01_sim_auction_dev_byworker.rds")
-#'         file.path(CONFIG$data_dir, "03_01_sim_auction_straight.rds")
-#'         file.path(CONFIG$data_dir, "03_01_sim_auction_straight_wage.rds")
-#'         file.path(CONFIG$data_dir, "03_01_sim_auction_straight_byworker.rds")
+#'         file.path(CONFIG$data_dir, "00_01_estimation_sample.rds")
+#' Output: file.path(CONFIG$data_dir, "03_02_sim_auction_dev.rds")
+#'         file.path(CONFIG$data_dir, "03_02_sim_auction_dev_markdown.rds")
+#'         file.path(CONFIG$data_dir, "03_02_sim_auction_dev_byworker.rds")
+#'         file.path(CONFIG$data_dir, "03_02_sim_auction_straight.rds")
+#'         file.path(CONFIG$data_dir, "03_02_sim_auction_straight_wage.rds")
+#'         file.path(CONFIG$data_dir, "03_02_sim_auction_straight_byworker.rds")
 #' =============================================================================
 
 library('data.table')
@@ -19,7 +19,7 @@ library('lubridate')
 
 source('config.R')
 source('utils/logging.R')
-log_init("03_01_auction_sim.R")
+log_init("03_02_auction_sim.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA
@@ -29,7 +29,7 @@ set.seed(660062)
 log_message("Loading estimation data and sample")
 load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
 
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_02_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
 
 officer_fe <- data.table(officer_fe = getFEs(mod_mod)$num_emp1, num_emp1 = as.numeric(names(getFEs(mod_mod)$num_emp1)))
 all_pairs <- merge(all_pairs, officer_fe, by = "num_emp1", all.x = TRUE)
@@ -106,9 +106,9 @@ for (iter in 1:max_iter) {
 
 ensure_directory(CONFIG$data_dir)
 log_message("Saving deviation auction results")
-saveRDS(results, file.path(CONFIG$data_dir, "03_01_sim_auction_dev.rds"))
-saveRDS(results_wage, file.path(CONFIG$data_dir, "03_01_sim_auction_dev_markdown.rds"))
-saveRDS(results_byworker, file.path(CONFIG$data_dir, "03_01_sim_auction_dev_byworker.rds"))
+saveRDS(results, file.path(CONFIG$data_dir, "03_02_sim_auction_dev.rds"))
+saveRDS(results_wage, file.path(CONFIG$data_dir, "03_02_sim_auction_dev_markdown.rds"))
+saveRDS(results_byworker, file.path(CONFIG$data_dir, "03_02_sim_auction_dev_byworker.rds"))
 
 #' ---------------------------------------------------------------------------
 #' AUCTION 2: STRAIGHT SHIFT AUCTION
@@ -156,8 +156,8 @@ for (iter in 1:max_iter) {
 }
 
 log_message("Saving straight auction results")
-saveRDS(results, file.path(CONFIG$data_dir, "03_01_sim_auction_straight.rds"))
-saveRDS(results_wage, file.path(CONFIG$data_dir, "03_01_sim_auction_straight_wage.rds"))
-saveRDS(results_byworker, file.path(CONFIG$data_dir, "03_01_sim_auction_straight_byworker.rds"))
+saveRDS(results, file.path(CONFIG$data_dir, "03_02_sim_auction_straight.rds"))
+saveRDS(results_wage, file.path(CONFIG$data_dir, "03_02_sim_auction_straight_wage.rds"))
+saveRDS(results_byworker, file.path(CONFIG$data_dir, "03_02_sim_auction_straight_byworker.rds"))
 
 log_complete(success = TRUE)

@@ -1,12 +1,12 @@
 #' =============================================================================
-#' INFORMAL TRADE SIMULATION - REVERSE (NEGATIVE CORRELATION)
+#' INFORMAL TRADE SIMULATION - PERFECT (POSITIVE CORRELATION)
 #' =============================================================================
-#' Sort connections negatively correlated with overtime valuation.
+#' Sort for exact alignment - most connections for the person who wants most.
 #' Vary access costs and network reduction parameters.
 #' Input:  file.path(CONFIG$data_dir, "02_00_estimate.Rdata")
-#'         file.path(CONFIG$data_dir, "00_02_estimation_sample.rds")
-#' Output: file.path(CONFIG$data_dir, "03_03_sim_informal_reverse.rds")
-#'         file.path(CONFIG$data_dir, "03_03_sim_informal_reverse_byworker.rds")
+#'         file.path(CONFIG$data_dir, "00_01_estimation_sample.rds")
+#' Output: file.path(CONFIG$data_dir, "03_05_sim_informal_perfect.rds")
+#'         file.path(CONFIG$data_dir, "03_05_sim_informal_perfect_byworker.rds")
 #' =============================================================================
 
 library('data.table')
@@ -15,17 +15,17 @@ library('lubridate')
 
 source('config.R')
 source('utils/logging.R')
-log_init("03_03_sim_informal_reverse.R")
+log_init("03_05_sim_informal_perfect.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA
 #' ---------------------------------------------------------------------------
 
-set.seed(387044)
+set.seed(455723)
 log_message("Loading estimation data and sample")
 load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
 
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_02_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
 officer_fe <- data.table(officer_fe = getFEs(mod_mod)$num_emp1, num_emp1 = as.numeric(names(getFEs(mod_mod)$num_emp1)))
 all_pairs <- merge(all_pairs, officer_fe, by = "num_emp1", all.x = TRUE)
 date_fe <- data.table(date_fe = getFEs(mod_mod)$analysis_workdate, analysis_workdate = as.Date(names(getFEs(mod_mod)$analysis_workdate)))
@@ -54,7 +54,7 @@ max_iter <- 200
 results <- data.table()
 results_byworker <- data.table()
 
-log_message("Starting reverse informal trade simulation across network/access cost grid")
+log_message("Starting perfect alignment informal trade simulation across network/access cost grid")
 
 for (net in c(seq(from = 0, to = 20 * coef(mod_mod)["suppliers_interacted"], length = 20), coef(mod_mod)["suppliers_interacted"])) {
   ## access cost.
@@ -68,8 +68,8 @@ for (net in c(seq(from = 0, to = 20 * coef(mod_mod)["suppliers_interacted"], len
       all_pairs[, true_utility := (det_util + rlogis(.N))]
 
       setorder(all_pairs, "analysis_workdate", -"true_utility", "num_emp1")
-      ## reassign the least connections to those who most value overtime
-      all_pairs[, mod_l_wheel_degree := sort(l_wheel_degree, decreasing = FALSE), by = "analysis_workdate"]
+      ## reassign the most connections to those who most value overtime
+      all_pairs[, mod_l_wheel_degree := sort(l_wheel_degree, decreasing = TRUE), by = "analysis_workdate"]
       all_pairs[, mod_suppliers_interacted := opp_dist * mod_l_wheel_degree]
 
       ## those who work are top based on full index
@@ -79,7 +79,7 @@ for (net in c(seq(from = 0, to = 20 * coef(mod_mod)["suppliers_interacted"], len
 
       ## non-wage utility delivered is then true utility but less wages, connections, and with max connectedness piece added.
       all_pairs[, true_valuation := (true_utility -
-                  (ot_rate * coef(mod_mod)["ot_rate"] + opp_dist * cost + mod_suppliers_interacted * net)) / (coef(mod_mod)["ot_rate"])]
+                                       (ot_rate * coef(mod_mod)["ot_rate"] + opp_dist * cost + mod_suppliers_interacted * net)) / (coef(mod_mod)["ot_rate"])]
       all_pairs[, true_utility := (true_utility) / coef(mod_mod)["ot_rate"]]
       all_pairs[, sim_value := sim_work * true_valuation, by = "analysis_workdate"]
       all_pairs[, sim_payment := (sim_win_wage) * sim_work * all_othours / tot_ot_among]
@@ -109,8 +109,8 @@ for (net in c(seq(from = 0, to = 20 * coef(mod_mod)["suppliers_interacted"], len
 #' ---------------------------------------------------------------------------
 
 ensure_directory(CONFIG$data_dir)
-log_message("Saving reverse informal trade simulation results")
-saveRDS(results, file.path(CONFIG$data_dir, "03_03_sim_informal_reverse.rds"))
-saveRDS(results_byworker, file.path(CONFIG$data_dir, "03_03_sim_informal_reverse_byworker.rds"))
+log_message("Saving perfect alignment informal trade simulation results")
+saveRDS(results, file.path(CONFIG$data_dir, "03_05_sim_informal_perfect.rds"))
+saveRDS(results_byworker, file.path(CONFIG$data_dir, "03_05_sim_informal_perfect_byworker.rds"))
 
 log_complete(success = TRUE)

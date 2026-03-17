@@ -16,7 +16,7 @@ Paper: [wheel_overtime_draft.pdf](https://www.jkohlhepp.com/pdf/wheel_overtime_d
 source("run_prep_data.R")
 
 # 3. Run analysis pipeline in order (see Pipeline below)
-source("00_02_mk_estimation_sample.R")
+source("00_01_mk_estimation_sample.R")
 source("02_00_estimate.R")
 # ... etc.
 ```
@@ -38,15 +38,15 @@ wheel_code/
 ├── prep_01_mk_network.R             # Network panels (30/90/180-day windows)
 ├── prep_02_mk_map.R                 # Enforcement districts map
 │
-├── 00_02_mk_estimation_sample.R     # Build main estimation sample
+├── 00_01_mk_estimation_sample.R     # Build main estimation sample
 ├── 01_00_facts.R                    # Descriptive facts and figures
-├── 01_02_lag_check.R                # Lag structure validation
-├── 01_04_termination_did.R          # Event study: terminations
-├── 01_05_new_hire.R                 # Event study: new hires
-├── 01_06_fmla.R                     # Event study: peer FMLA leave
-├── 01_06b_own_fmla.R               # Event study: own FMLA leave
-├── 01_07_bereave.R                  # Event study: peer bereavement
-├── 01_07b_own_bereave.R            # Event study: own bereavement
+├── 01_01_lag_check.R                # Lag structure validation
+├── 01_03_termination_did.R          # Event study: terminations
+├── 01_04_new_hire.R                 # Event study: new hires
+├── 01_05_fmla.R                     # Event study: peer FMLA leave
+├── 01_05b_own_fmla.R               # Event study: own FMLA leave
+├── 01_06_bereave.R                  # Event study: peer bereavement
+├── 01_06b_own_bereave.R            # Event study: own bereavement
 │
 ├── 02_00_estimate.R                 # Main logit/probit estimation
 ├── 02_00b_estimate_many.R           # Time-varying estimates
@@ -54,13 +54,13 @@ wheel_code/
 ├── 02_02_validate_valuations.R      # Validate against special events
 ├── 02_03_cartel_age.R               # Heterogeneity by age/tenure
 ├── 02_04_decomp_pref_network.R      # Preference vs. network decomposition
-├── 02_07_labor_supply.R             # Labor supply analysis
+├── 02_05_labor_supply.R             # Labor supply analysis
 │
-├── 03_00_sim_random.R               # Simulation: random allocation
-├── 03_01_auction_sim.R              # Simulation: auction mechanisms
-├── 03_02_sim_informal.R             # Simulation: informal trading
-├── 03_03_sim_informal_reverse.R     # Simulation: reverse-seniority trading
-├── 03_04_sim_informal_perfect.R     # Simulation: perfect-information trading
+├── 03_01_sim_random.R               # Simulation: random allocation
+├── 03_02_auction_sim.R              # Simulation: auction mechanisms
+├── 03_03_sim_informal.R             # Simulation: informal trading
+├── 03_04_sim_informal_reverse.R     # Simulation: reverse-seniority trading
+├── 03_05_sim_informal_perfect.R     # Simulation: perfect-information trading
 ├── 03_98_heatmap.R                  # Simulation heatmap visualization
 ├── 03_99_compare_sims.R             # Cross-simulation comparison
 │
@@ -92,10 +92,10 @@ Run via `source("run_prep_data.R")`. Steps are skipped automatically when inputs
 
 | Tier | Scripts | Depends On |
 |------|---------|------------|
-| 0 | `00_02_mk_estimation_sample.R` | prep_01 output |
-| 1 | `01_00_facts.R`, `01_02` -- `01_07b` (event studies) | Tier 0 |
+| 0 | `00_01_mk_estimation_sample.R` | prep_01 output |
+| 1 | `01_00_facts.R`, `01_01` -- `01_06b` (event studies) | Tier 0 |
 | 2 | `02_00_estimate.R` (main estimation) | Tier 0 |
-| 3 | `02_01` -- `02_07` (estimation analysis), `03_00` -- `03_04` (simulations) | Tier 2 |
+| 3 | `02_01` -- `02_05` (estimation analysis), `03_00` -- `03_05` (simulations) | Tier 2 |
 | 4 | `03_98_heatmap.R`, `03_99_compare_sims.R` | Tier 3 |
 | 5 | `04_00_elasticity_did.R` | Tier 0 |
 
@@ -135,7 +135,7 @@ Raw data directories are date-stamped (`YYYYMMDD_description/`) and gitignored. 
 |------|--------|
 | `data/01_03_pre_network_{30,90,180}.csv` | Stata 01_03 (or R port) |
 | `data/prep_01_panel_working.rds` | `prep_01_mk_network.R` |
-| `data/00_02_estimation_sample.rds` | `00_02_mk_estimation_sample.R` |
+| `data/00_01_estimation_sample.rds` | `00_01_mk_estimation_sample.R` |
 
 ## Requirements
 

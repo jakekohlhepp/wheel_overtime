@@ -2,7 +2,7 @@
 #' VALIDATE VALUATIONS
 #' =============================================================================
 #' Input:  data/02_00_estimate.Rdata
-#'         data/00_02_estimation_sample.rds
+#'         data/00_01_estimation_sample.rds
 #'         20250207_bss_special_events/Building_and_Safety_...csv
 #'         data/02_02_val_special_events_filled.csv
 #' Output: data/02_02_val_special_events_blank.csv
@@ -28,7 +28,7 @@ log_message("Starting valuation validation")
 #' ---------------------------------------------------------------------------
 
 load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_02_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
 ## compute average ot hours.
 avg_othours <- mean(all_pairs[ot_work == 1]$varot_hours)
 

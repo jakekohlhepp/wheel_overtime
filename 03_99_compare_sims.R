@@ -7,18 +7,18 @@
 #' individual-level winner/loser analysis.
 #'
 #' Input:  data/02_00_estimate.Rdata               (logit model)
-#'         data/00_02_estimation_sample.rds         (estimation sample)
-#'         data/03_02_sim_informal.rds              (status quo sim)
-#'         data/03_01_sim_auction_straight.rds      (uniform-wage auction)
-#'         data/03_01_sim_auction_dev.rds           (uniform-markdown auction)
-#'         data/03_00_sim_frontier_cluster.rds      (random assignment frontier)
-#'         data/03_01_sim_auction_dev_markdown.rds  (markdown by date)
-#'         data/03_01_sim_auction_straight_wage.rds (wage by date)
-#'         data/03_02_sim_informal_byworker.rds     (worker-level informal)
-#'         data/03_01_sim_auction_dev_byworker.rds  (worker-level markdown)
-#'         data/03_01_sim_auction_straight_byworker.rds (worker-level wage)
-#'         data/03_03_sim_informal_reverse.rds      (reverse access costs)
-#'         data/03_04_sim_informal_perfect.rds      (perfect access)
+#'         data/00_01_estimation_sample.rds         (estimation sample)
+#'         data/03_03_sim_informal.rds              (status quo sim)
+#'         data/03_02_sim_auction_straight.rds      (uniform-wage auction)
+#'         data/03_02_sim_auction_dev.rds           (uniform-markdown auction)
+#'         data/03_00_sim_frontier.rds      (random assignment frontier)
+#'         data/03_02_sim_auction_dev_markdown.rds  (markdown by date)
+#'         data/03_02_sim_auction_straight_wage.rds (wage by date)
+#'         data/03_03_sim_informal_byworker.rds     (worker-level informal)
+#'         data/03_02_sim_auction_dev_byworker.rds  (worker-level markdown)
+#'         data/03_02_sim_auction_straight_byworker.rds (worker-level wage)
+#'         data/03_04_sim_informal_reverse.rds      (reverse access costs)
+#'         data/03_05_sim_informal_perfect.rds      (perfect access)
 #' Output: out/figures/03_99_*.png
 #'         out/tables/03_99_*.tex
 #' =============================================================================
@@ -41,7 +41,7 @@ log_message("Comparing simulation outcomes")
 #' -----------------------------------------------------------------------------
 
 load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_02_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
 
 ## Average OT hours per shift
 avg_ot_hours <- sum(all_pairs$varot_hours) / sum(all_pairs$ot_work)
@@ -60,7 +60,7 @@ all_pairs <- all_pairs[!is.na(officer_fe), ]
 #' -----------------------------------------------------------------------------
 
 ## Status quo (informal trading)
-status_quo <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_informal.rds"))
+status_quo <- readRDS(file.path(CONFIG$data_dir, "03_03_sim_informal.rds"))
 status_quo[, worker_value := worker_value * avg_ot_hours]
 status_quo <- status_quo[access_cost_mult == 1, ]
 status_quo[, worker_surplus := worker_surplus * avg_ot_hours]
@@ -71,7 +71,7 @@ status_quo_sum <- status_quo[, .(mean_ineq = mean(share_top10),
                                  mean_workersurplus = mean(worker_surplus))]
 
 ## Uniform-wage auction
-auctions <- readRDS(file.path(CONFIG$data_dir, "03_01_sim_auction_straight.rds"))
+auctions <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_straight.rds"))
 auctions[, worker_value := worker_value * avg_ot_hours]
 auctions[, worker_surplus := worker_surplus * avg_ot_hours]
 auctions_sum <- auctions[, .(mean_ineq = mean(share_top10),
@@ -80,7 +80,7 @@ auctions_sum <- auctions[, .(mean_ineq = mean(share_top10),
                               mean_workersurplus = mean(worker_surplus))]
 
 ## Uniform-markdown auction
-auctions_dev <- readRDS(file.path(CONFIG$data_dir, "03_01_sim_auction_dev.rds"))
+auctions_dev <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_dev.rds"))
 auctions_dev[, worker_value := worker_value * avg_ot_hours]
 auctions_dev[, worker_surplus := worker_surplus * avg_ot_hours]
 auctions_dev_sum <- auctions_dev[, .(mean_ineq = mean(share_top10),
@@ -89,7 +89,7 @@ auctions_dev_sum <- auctions_dev[, .(mean_ineq = mean(share_top10),
                                       mean_workersurplus = mean(worker_surplus))]
 
 ## Random assignment frontier
-managers_val <- readRDS(file.path(CONFIG$data_dir, "03_00_sim_frontier_cluster.rds"))
+managers_val <- readRDS(file.path(CONFIG$data_dir, "03_00_sim_frontier.rds"))
 managers_val_sum <- managers_val[, .(mean_surplus = mean(worker_value) * avg_ot_hours,
                                      mean_ineq = mean(share_top10)), by = "savy_num"]
 
@@ -100,7 +100,7 @@ managers_val_sum <- managers_val[, .(mean_surplus = mean(worker_value) * avg_ot_
 ensure_directory(CONFIG$figures_dir)
 ensure_directory(CONFIG$tables_dir)
 
-results_wage <- readRDS(file.path(CONFIG$data_dir, "03_01_sim_auction_dev_markdown.rds"))
+results_wage <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_dev_markdown.rds"))
 results_wage <- results_wage[, .(mean_wage = mean(sim_markdown)), by = "analysis_workdate"]
 
 ggplot(data = results_wage, aes(x = analysis_workdate, y = mean_wage)) +
@@ -111,7 +111,7 @@ ggplot(data = results_wage, aes(x = analysis_workdate, y = mean_wage)) +
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
 ggsave(file.path(CONFIG$figures_dir, "03_99_markdowns_bydate.png"), width = 12, height = 8, units = "in")
 
-results_wage <- readRDS(file.path(CONFIG$data_dir, "03_01_sim_auction_straight_wage.rds"))
+results_wage <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_straight_wage.rds"))
 results_wage <- results_wage[, .(mean_wage = -mean(sim_win_wage)), by = "analysis_workdate"]
 
 ggplot(data = results_wage, aes(x = analysis_workdate, y = mean_wage)) +
@@ -241,17 +241,17 @@ kable(fortable[, .SD, .SDcols = c(1, 8:13)], "latex", align = "c", booktabs = TR
 #' INDIVIDUAL WINNERS AND LOSERS
 #' -----------------------------------------------------------------------------
 
-status_quo_byemp <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_informal_byworker.rds"))
+status_quo_byemp <- readRDS(file.path(CONFIG$data_dir, "03_03_sim_informal_byworker.rds"))
 status_quo_byemp_sum <- status_quo_byemp[access_cost_mult == 1, .(s_surplus = mean(worker_surplus * avg_ot_hours),
                                                                     s_otpay = mean(total_ot_pay),
                                                                     s_totalot = mean(total_ot)), by = "num_emp1"]
 
-auction_dev_byemp <- readRDS(file.path(CONFIG$data_dir, "03_01_sim_auction_dev_byworker.rds"))
+auction_dev_byemp <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_dev_byworker.rds"))
 auction_dev_byemp_sum <- auction_dev_byemp[, .(m_surplus = mean(worker_surplus * avg_ot_hours),
                                                 m_otpay = mean(total_ot_pay),
                                                 m_totalot = mean(total_ot)), by = "num_emp1"]
 
-auction_byemp <- readRDS(file.path(CONFIG$data_dir, "03_01_sim_auction_straight_byworker.rds"))
+auction_byemp <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_straight_byworker.rds"))
 auction_byemp_sum <- auction_byemp[, .(a_surplus = mean(worker_surplus * avg_ot_hours),
                                         a_otpay = mean(total_ot_pay),
                                         a_totalot = mean(total_ot)), by = "num_emp1"]
@@ -347,7 +347,7 @@ kable(cartel, "latex", align = "c", booktabs = TRUE, linesep = c(""), escape = F
 #' ACCESS COST ROBUSTNESS
 #' -----------------------------------------------------------------------------
 
-status_quo <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_informal.rds"))
+status_quo <- readRDS(file.path(CONFIG$data_dir, "03_03_sim_informal.rds"))
 status_quo[, worker_value := worker_value * avg_ot_hours]
 status_quo[, worker_surplus := worker_surplus * avg_ot_hours]
 status_quo_sum <- status_quo[, .(mean_ineq = mean(share_top10),
@@ -355,7 +355,7 @@ status_quo_sum <- status_quo[, .(mean_ineq = mean(share_top10),
                                  mean_wage_bill = mean(wage_bill),
                                  mean_workersurplus = mean(worker_surplus)), by = "access_cost_mult"]
 
-status_quo_reverse <- readRDS(file.path(CONFIG$data_dir, "03_03_sim_informal_reverse.rds"))
+status_quo_reverse <- readRDS(file.path(CONFIG$data_dir, "03_04_sim_informal_reverse.rds"))
 status_quo_reverse[, worker_value := worker_value * avg_ot_hours]
 status_quo_reverse[, worker_surplus := worker_surplus * avg_ot_hours]
 status_quo_reverse_sum <- status_quo_reverse[, .(mean_ineq = mean(share_top10),
@@ -363,7 +363,7 @@ status_quo_reverse_sum <- status_quo_reverse[, .(mean_ineq = mean(share_top10),
                                                   mean_wage_bill = mean(wage_bill),
                                                   mean_workersurplus = mean(worker_surplus)), by = "access_cost_mult"]
 
-status_quo_perfect <- readRDS(file.path(CONFIG$data_dir, "03_04_sim_informal_perfect.rds"))
+status_quo_perfect <- readRDS(file.path(CONFIG$data_dir, "03_05_sim_informal_perfect.rds"))
 status_quo_perfect[, worker_value := worker_value * avg_ot_hours]
 status_quo_perfect[, worker_surplus := worker_surplus * avg_ot_hours]
 status_quo_perfect_sum <- status_quo_perfect[, .(mean_ineq = mean(share_top10),

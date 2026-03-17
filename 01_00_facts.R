@@ -1,7 +1,7 @@
 #' =============================================================================
 #' DESCRIPTIVE FACTS AND NETWORK VISUALIZATION
 #' =============================================================================
-#' Input:  data/00_02_estimation_sample.rds
+#' Input:  data/00_01_estimation_sample.rds
 #'         data/{pre_network_prefix}{network_window_default}.csv (tenure, injury)
 #'         Contact matrix via load_contact_matrix() (for network plots)
 #'         {raw_pay_dir}/anonymized_data_073117.txt (bereavement, FMLA flags)
@@ -38,7 +38,7 @@ library('xtable')
 #' ---------------------------------------------------------------------------
 
 log_message("Loading estimation sample")
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_02_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
 
 #' ---------------------------------------------------------------------------
 #' MERGE TENURE AND NATURE OF INJURY

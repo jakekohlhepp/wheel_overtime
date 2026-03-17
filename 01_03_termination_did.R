@@ -1,14 +1,14 @@
 #' =============================================================================
 #' TERMINATION EVENT STUDY (DiD)
 #' =============================================================================
-#' Input:  data/00_02_estimation_sample.rds
+#' Input:  data/00_01_estimation_sample.rds
 #'         Contact matrix via load_contact_matrix()
-#' Output: out/figures/01_04_termination_twfe.png
+#' Output: out/figures/01_03_termination_twfe.png
 #' =============================================================================
 
 source('config.R')
 source('utils/logging.R')
-log_init("01_04_termination_did.R")
+log_init("01_03_termination_did.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD PACKAGES
@@ -24,7 +24,7 @@ library('ggplot2')
 #' ---------------------------------------------------------------------------
 
 log_message("Loading estimation sample")
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_02_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
 
 log_message("Loading contact matrix")
 contact_matrix <- load_contact_matrix()
@@ -71,10 +71,10 @@ summary(twfe)
 twfe <- feols(degree ~ i(rel_time, ref = -c(1, Inf)) | num_emp1 + analysis_workdate, data = all_pairs[does_term == 0])
 
 ensure_directory(CONFIG$figures_dir)
-png(file.path(CONFIG$figures_dir, "01_04_termination_twfe.png"), width = 900, height = 500)
+png(file.path(CONFIG$figures_dir, "01_03_termination_twfe.png"), width = 900, height = 500)
 iplot(twfe, main = "", xlab = "Time to Treatment (Days)", ylab = "Connectedness",
       drop = "([3-9]\\d{1}|\\d{3})", lab.fit = "simple")
 dev.off()
 
-log_message("01_04_termination_did.R completed successfully")
+log_message("01_03_termination_did.R completed successfully")
 log_complete(success = TRUE)

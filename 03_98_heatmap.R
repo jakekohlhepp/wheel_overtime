@@ -3,12 +3,12 @@
 #' =============================================================================
 #' Create heatmaps of allocative efficiency across network/access cost grid.
 #' Input:  file.path(CONFIG$data_dir, "02_00_estimate.Rdata")
-#'         file.path(CONFIG$data_dir, "00_02_estimation_sample.rds")
-#'         file.path(CONFIG$data_dir, "03_00_sim_random.rds")
-#'         file.path(CONFIG$data_dir, "03_01_sim_auction_straight.rds")
-#'         file.path(CONFIG$data_dir, "03_02_sim_informal.rds")
-#'         file.path(CONFIG$data_dir, "03_03_sim_informal_reverse.rds")
-#'         file.path(CONFIG$data_dir, "03_04_sim_informal_perfect.rds")
+#'         file.path(CONFIG$data_dir, "00_01_estimation_sample.rds")
+#'         file.path(CONFIG$data_dir, "03_01_sim_random.rds")
+#'         file.path(CONFIG$data_dir, "03_02_sim_auction_straight.rds")
+#'         file.path(CONFIG$data_dir, "03_03_sim_informal.rds")
+#'         file.path(CONFIG$data_dir, "03_04_sim_informal_reverse.rds")
+#'         file.path(CONFIG$data_dir, "03_05_sim_informal_perfect.rds")
 #' Output: file.path(CONFIG$figures_dir, "03_98_heatmap.png")
 #'         file.path(CONFIG$figures_dir, "03_98_heatmap_less_granular.png")
 #' =============================================================================
@@ -28,15 +28,15 @@ log_init("03_98_heatmap.R")
 log_message("Loading estimation data and simulation results")
 load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
 
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_02_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
 ### compute average ot per shift.
 avg_ot_hours <- sum(all_pairs$varot_hours) / sum(all_pairs$ot_work)
 
 ## compute minimum and maximum benchmarks
-random_assignment <- readRDS(file.path(CONFIG$data_dir, "03_00_sim_random.rds"))
+random_assignment <- readRDS(file.path(CONFIG$data_dir, "03_01_sim_random.rds"))
 min_benchmark <- mean(random_assignment$worker_value) * avg_ot_hours
 
-auctions <- readRDS(file.path(CONFIG$data_dir, "03_01_sim_auction_straight.rds"))
+auctions <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_straight.rds"))
 auctions[, worker_value := worker_value * avg_ot_hours]
 auctions[, worker_surplus := worker_surplus * avg_ot_hours]
 auctions_sum <- auctions[, .(mean_ineq = mean(share_top10),
@@ -49,14 +49,14 @@ max_benchmark <- auctions_sum$mean_allocative[1]
 #' ---------------------------------------------------------------------------
 
 log_message("Combining simulation results across regimes")
-results <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_informal.rds"))
+results <- readRDS(file.path(CONFIG$data_dir, "03_03_sim_informal.rds"))
 setnames(results, "network_reduce", "network_reduction")
 results[, regime := "Observed"]
 results_together <- copy(results)
-results <- readRDS(file.path(CONFIG$data_dir, "03_04_sim_informal_perfect.rds"))
+results <- readRDS(file.path(CONFIG$data_dir, "03_05_sim_informal_perfect.rds"))
 results[, regime := "Positive"]
 results_together <- rbind(results_together, results)
-results <- readRDS(file.path(CONFIG$data_dir, "03_03_sim_informal_reverse.rds"))
+results <- readRDS(file.path(CONFIG$data_dir, "03_04_sim_informal_reverse.rds"))
 results[, regime := "Negative"]
 results_together <- rbind(results_together, results)
 

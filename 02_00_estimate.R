@@ -1,7 +1,7 @@
 #' =============================================================================
 #' ESTIMATE MAIN MODEL
 #' =============================================================================
-#' Input:  data/00_02_estimation_sample.rds
+#' Input:  data/00_01_estimation_sample.rds
 #' Output: data/02_00_estimate.Rdata, data/02_00_estimate_probit.Rdata
 #' =============================================================================
 
@@ -19,7 +19,7 @@ log_message("Starting main estimation")
 #' ---------------------------------------------------------------------------
 
 set.seed(633491)
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_02_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
 
 #' ---------------------------------------------------------------------------
 #' LOGIT ESTIMATION

@@ -2,9 +2,9 @@
 #' RANDOM ASSIGNMENT SIMULATION
 #' =============================================================================
 #' Input:  file.path(CONFIG$data_dir, "02_00_estimate.Rdata")
-#'         file.path(CONFIG$data_dir, "00_02_estimation_sample.rds")
-#' Output: file.path(CONFIG$data_dir, "03_00_sim_random.rds")
-#'         file.path(CONFIG$data_dir, "03_00_sim_random_byworker.rds")
+#'         file.path(CONFIG$data_dir, "00_01_estimation_sample.rds")
+#' Output: file.path(CONFIG$data_dir, "03_01_sim_random.rds")
+#'         file.path(CONFIG$data_dir, "03_01_sim_random_byworker.rds")
 #' =============================================================================
 
 library('alpaca')
@@ -15,7 +15,7 @@ library('stats')
 
 source('config.R')
 source('utils/logging.R')
-log_init("03_00_sim_random.R")
+log_init("03_01_sim_random.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA
@@ -25,7 +25,7 @@ set.seed(477812)
 log_message("Loading estimation data and sample")
 load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
 
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_02_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
 officer_fe <- data.table(officer_fe = getFEs(mod_mod)$num_emp1, num_emp1 = as.numeric(names(getFEs(mod_mod)$num_emp1)))
 all_pairs <- merge(all_pairs, officer_fe, by = "num_emp1", all.x = TRUE)
 date_fe <- data.table(date_fe = getFEs(mod_mod)$analysis_workdate, analysis_workdate = as.Date(names(getFEs(mod_mod)$analysis_workdate)))
@@ -106,7 +106,7 @@ for (iter in 1:max_iter) {
 
 ensure_directory(CONFIG$data_dir)
 log_message("Saving simulation results")
-saveRDS(results, file.path(CONFIG$data_dir, "03_00_sim_random.rds"))
-saveRDS(results_byworker, file.path(CONFIG$data_dir, "03_00_sim_random_byworker.rds"))
+saveRDS(results, file.path(CONFIG$data_dir, "03_01_sim_random.rds"))
+saveRDS(results_byworker, file.path(CONFIG$data_dir, "03_01_sim_random_byworker.rds"))
 
 log_complete(success = TRUE)

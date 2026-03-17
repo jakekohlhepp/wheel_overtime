@@ -1,7 +1,7 @@
 #' =============================================================================
 #' DECOMPOSE PREFERENCES VS NETWORK
 #' =============================================================================
-#' Input:  data/00_02_estimation_sample.rds
+#' Input:  data/00_01_estimation_sample.rds
 #'         data/02_00_estimate.Rdata
 #' Output: out/tables/02_04_decomp.tex
 #' =============================================================================
@@ -32,7 +32,7 @@ set.seed(490028)
 ### simulations to parse contributions of network vs preferences.
 
 ### step 1: determine the constant that must be added to preferences when centrality is zero to achieve the same average work probability.
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_02_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
 load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
 
 date_fe <- data.table(datefe = getFEs(mod_mod)$analysis_workdate, analysis_workdate = as.Date(names(getFEs(mod_mod)$analysis_workdate)))

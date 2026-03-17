@@ -4,9 +4,9 @@
 #' Hold fix the number of officers who work each day at the observed level
 #' but choose based on the model index, varying access costs and network.
 #' Input:  file.path(CONFIG$data_dir, "02_00_estimate.Rdata")
-#'         file.path(CONFIG$data_dir, "00_02_estimation_sample.rds")
-#' Output: file.path(CONFIG$data_dir, "03_02_sim_informal.rds")
-#'         file.path(CONFIG$data_dir, "03_02_sim_informal_byworker.rds")
+#'         file.path(CONFIG$data_dir, "00_01_estimation_sample.rds")
+#' Output: file.path(CONFIG$data_dir, "03_03_sim_informal.rds")
+#'         file.path(CONFIG$data_dir, "03_03_sim_informal_byworker.rds")
 #' =============================================================================
 
 library('data.table')
@@ -15,7 +15,7 @@ library('lubridate')
 
 source('config.R')
 source('utils/logging.R')
-log_init("03_02_sim_informal.R")
+log_init("03_03_sim_informal.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA
@@ -25,7 +25,7 @@ set.seed(54323)
 log_message("Loading estimation data and sample")
 load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
 
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_02_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
 officer_fe <- data.table(officer_fe = getFEs(mod_mod)$num_emp1, num_emp1 = as.numeric(names(getFEs(mod_mod)$num_emp1)))
 all_pairs <- merge(all_pairs, officer_fe, by = "num_emp1", all.x = TRUE)
 date_fe <- data.table(date_fe = getFEs(mod_mod)$analysis_workdate, analysis_workdate = as.Date(names(getFEs(mod_mod)$analysis_workdate)))
@@ -105,7 +105,7 @@ for (net in c(seq(from = 0, to = 20 * coef(mod_mod)["suppliers_interacted"], len
 
 ensure_directory(CONFIG$data_dir)
 log_message("Saving informal trade simulation results")
-saveRDS(results, file.path(CONFIG$data_dir, "03_02_sim_informal.rds"))
-saveRDS(results_byworker, file.path(CONFIG$data_dir, "03_02_sim_informal_byworker.rds"))
+saveRDS(results, file.path(CONFIG$data_dir, "03_03_sim_informal.rds"))
+saveRDS(results_byworker, file.path(CONFIG$data_dir, "03_03_sim_informal_byworker.rds"))
 
 log_complete(success = TRUE)

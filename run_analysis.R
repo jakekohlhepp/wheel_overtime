@@ -21,11 +21,11 @@ ensure_directory(CONFIG$figures_dir)
 RUN_EST_SAMPLE    <- TRUE
 RUN_FACTS         <- TRUE
 RUN_EVENT_STUDIES <- TRUE
-RUN_ESTIMATION    <- TRUE
-RUN_EST_ANALYSIS  <- TRUE
-RUN_SIMULATIONS   <- TRUE
-RUN_SIM_COMPARE   <- TRUE
-RUN_ELASTICITY    <- TRUE
+RUN_ESTIMATION    <- FALSE
+RUN_EST_ANALYSIS  <- FALSE
+RUN_SIMULATIONS   <- FALSE
+RUN_SIM_COMPARE   <- FALSE
+RUN_ELASTICITY    <- FALSE
 
 pipeline_results <- list()
 
@@ -76,12 +76,12 @@ run_step <- function(step_name, script, deps, outputs = NULL,
 #' TIER 0: Build estimation sample
 #' -----------------------------------------------------------------------------
 
-est_sample_path <- file.path(CONFIG$data_dir, "00_02_estimation_sample.rds")
+est_sample_path <- file.path(CONFIG$data_dir, "00_01_estimation_sample.rds")
 
 if (RUN_EST_SAMPLE) {
-  run_step("00_02_mk_estimation_sample",
-           "00_02_mk_estimation_sample.R",
-           deps = c("config.R", "00_02_mk_estimation_sample.R",
+  run_step("00_01_mk_estimation_sample",
+           "00_01_mk_estimation_sample.R",
+           deps = c("config.R", "00_01_mk_estimation_sample.R",
                     get_network_output_path(CONFIG$network_window_default),
                     file.path(CONFIG$raw_pay_dir, "anonymized_data_073117.txt")),
            outputs = est_sample_path)
@@ -98,19 +98,19 @@ if (RUN_FACTS) {
 }
 
 if (RUN_FACTS) {
-  run_step("01_02_lag_check",
-           "01_02_lag_check.R",
-           deps = c("config.R", "01_02_lag_check.R", est_sample_path))
+  run_step("01_01_lag_check",
+           "01_01_lag_check.R",
+           deps = c("config.R", "01_01_lag_check.R", est_sample_path))
 }
 
 if (RUN_EVENT_STUDIES) {
   event_scripts <- c(
-    "01_04_termination_did",
-    "01_05_new_hire",
-    "01_06_fmla",
-    "01_06b_own_fmla",
-    "01_07_bereave",
-    "01_07b_own_bereave"
+    "01_03_termination_did",
+    "01_04_new_hire",
+    "01_05_fmla",
+    "01_05b_own_fmla",
+    "01_06_bereave",
+    "01_06b_own_bereave"
   )
 
   for (script_name in event_scripts) {
@@ -150,7 +150,7 @@ if (RUN_EST_ANALYSIS) {
     "02_02_validate_valuations",
     "02_03_cartel_age",
     "02_04_decomp_pref_network",
-    "02_07_labor_supply"
+    "02_05_labor_supply"
   )
 
   for (script_name in est_analysis_scripts) {
@@ -168,11 +168,11 @@ sim_outputs <- list()
 
 if (RUN_SIMULATIONS) {
   sim_scripts <- c(
-    "03_00_sim_random",
-    "03_01_auction_sim",
-    "03_02_sim_informal",
-    "03_03_sim_informal_reverse",
-    "03_04_sim_informal_perfect"
+    "03_01_sim_random",
+    "03_02_auction_sim",
+    "03_03_sim_informal",
+    "03_04_sim_informal_reverse",
+    "03_05_sim_informal_perfect"
   )
 
   for (script_name in sim_scripts) {
