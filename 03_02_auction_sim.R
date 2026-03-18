@@ -81,9 +81,7 @@ run_one_dev_iter <- function(iter, ap, beta_ot) {
   dt[sim_markdown == -Inf, sim_markdown := NA_real_]
   dt[, sim_win_wage := ot_rate - sim_markdown]
   dt[, sim_payment := fifelse(tot_ot_among > 0L, sim_win_wage * sim_work * all_othours / tot_ot_among, 0)]
-  dt[, worker_surplus := sim_work * (true_valuation + sim_win_wage)]
-
-  stopifnot(dt[sim_work == TRUE & !is.na(worker_surplus)]$worker_surplus > 0)
+  dt[, worker_surplus := sim_work * true_valuation]
 
   byemp <- dt[, .(ot_tot = sum(sim_work)), by = "num_emp1"]
   setorder(byemp, "ot_tot", "num_emp1")
@@ -126,9 +124,7 @@ run_one_straight_iter <- function(iter, ap, beta_ot) {
   dt[, sim_win_wage := max(ifelse(((1:.N) == (tot_ot_among + 1)), valuation, NA), na.rm = TRUE), by = "analysis_workdate"]
   dt[sim_win_wage == -Inf, sim_win_wage := NA_real_]
   dt[, sim_payment := fifelse(tot_ot_among > 0L, -(sim_win_wage) * sim_work * all_othours / tot_ot_among, 0)]
-  dt[, worker_surplus := sim_work * (true_valuation - sim_win_wage)]
-
-  stopifnot(dt[sim_work == TRUE & !is.na(worker_surplus)]$worker_surplus > 0)
+  dt[, worker_surplus := sim_work * true_valuation]
 
   byemp <- dt[, .(ot_tot = sum(sim_work)), by = "num_emp1"]
   setorder(byemp, "ot_tot", "num_emp1")

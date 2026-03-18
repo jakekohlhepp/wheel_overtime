@@ -93,7 +93,7 @@ run_one_random_iter <- function(iter, ap, beta_ot, beta_od, beta_si) {
 
   dt[, sim_value := sim_work * true_valuation]
   dt[, sim_payment := fifelse(tot_ot_among > 0L, sim_win_wage * sim_work * all_othours / tot_ot_among, 0)]
-  dt[, worker_surplus := sim_work * (true_utility / beta_ot)]
+  dt[, worker_surplus := sim_work * true_valuation]
 
   byemp <- dt[, .(ot_tot = sum(sim_work)), by = "num_emp1"]
   setorder(byemp, "ot_tot", "num_emp1")

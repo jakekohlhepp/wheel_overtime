@@ -108,7 +108,7 @@ run_one_cell_reverse <- function(cell_idx, ap, grid, max_iter, beta_sr, beta_nw,
                 (ot_rate * beta_ot + opp_dist * cost + mod_suppliers_interacted * net)) / beta_ot]
     dt[, sim_value := sim_work * true_valuation]
     dt[, sim_payment := fifelse(tot_ot_among > 0L, sim_win_wage * sim_work * all_othours / tot_ot_among, 0)]
-    dt[, worker_surplus := sim_work * (true_utility / beta_ot)]
+    dt[, worker_surplus := sim_work * true_valuation]
 
     byemp <- dt[, .(ot_tot = sum(sim_work)), by = "num_emp1"]
     setorder(byemp, "ot_tot", "num_emp1")
