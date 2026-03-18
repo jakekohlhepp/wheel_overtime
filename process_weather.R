@@ -24,7 +24,7 @@ stopifnot(all(!is.na(weather$tmax)))
 stopifnot(all(!is.na(weather$tmin)))
 stopifnot(all(!is.na(weather$prcp)))
 
-weather <- weather[, .(tmin, tmax, prcp, date)]
+weather <- weather[, .(prcp, tmax, tmin, date)]
 setorder(weather, date)
 stopifnot(nrow(weather) == uniqueN(weather$date))
 attr(weather$date, 'format.stata') <- '%td'
@@ -32,3 +32,4 @@ attr(weather$date, 'format.stata') <- '%td'
 write_dta(weather, output_path, version = 14)
 log_message(paste('Saved', output_path))
 log_complete(success = TRUE)
+

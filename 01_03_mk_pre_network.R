@@ -54,9 +54,13 @@ fornetwork[, emp_num := as.integer(gsub(CONFIG$employee_name_pattern, '', employ
 
 wide_div <- dcast(fornetwork[, .(geo_div, analysis_workdate, emp_num, exposure)],
                   geo_div + analysis_workdate ~ emp_num, value.var = 'exposure')
-exposure_ids <- setdiff(names(wide_div), c('geo_div', 'analysis_workdate'))
+full_emp_nums <- seq(min(fornetwork$emp_num), max(fornetwork$emp_num))
+missing_emp_cols <- setdiff(as.character(full_emp_nums), setdiff(names(wide_div), c('geo_div', 'analysis_workdate')))
+for (col in missing_emp_cols) wide_div[, (col) := NA_real_]
+exposure_ids <- as.character(full_emp_nums)
+setcolorder(wide_div, c('geo_div', 'analysis_workdate', exposure_ids))
 setnames(wide_div, exposure_ids, paste0('exposure', exposure_ids))
-exposure_cols <- grep('^exposure', names(wide_div), value = TRUE)
+exposure_cols <- paste0('exposure', exposure_ids)
 for (col in exposure_cols) wide_div[is.na(get(col)), (col) := 0]
 
 exposure_panel <- merge(fornetwork[, .(geo_div, analysis_workdate, employee_name)],
@@ -99,7 +103,7 @@ for (window in CONFIG$pre_network_windows) {
   panel[, an_age := age_20150101 + as.numeric(analysis_workdate - CONFIG$injury_window_start) / 365.25]
 
   setorder(panel, analysis_workdate, tenure, employee_name)
-  panel[, seniority_rank := frank(tenure, ties.method = 'average'), by = analysis_workdate]
+  panel[, seniority_rank := frank(-tenure, ties.method = 'min'), by = analysis_workdate]
   panel[, first_inj_date := {
     keep <- analysis_workdate[matched_injury == 1]
     if (length(keep) == 0) as.Date(NA) else keep[1]
@@ -140,3 +144,4 @@ for (window in CONFIG$pre_network_windows) {
 }
 
 log_complete(success = TRUE)
+

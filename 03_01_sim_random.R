@@ -39,11 +39,17 @@ all_pairs <- merge(all_pairs, date_fe, by = "analysis_workdate", all.x = TRUE)
 log_message(paste0("Fraction officers without FE: ", uniqueN(all_pairs[is.na(officer_fe)]$num_emp1) / uniqueN(all_pairs$num_emp1)))
 all_pairs <- all_pairs[!is.na(officer_fe), ]
 
+## Extract coefficients once
+beta_sr  <- coef(mod_mod)["seniority_rank"]
+beta_nw  <- coef(mod_mod)["normal_work"]
+beta_ot  <- coef(mod_mod)["ot_rate"]
+beta_od  <- coef(mod_mod)["opp_dist"]
+beta_si  <- coef(mod_mod)["suppliers_interacted"]
+
 all_pairs[, tot_ot_among := sum(ot_work), by = "analysis_workdate"]
 ## utility is sum of all components including wages and degrees.
-all_pairs[, det_util := opp_dist * coef(mod_mod)["opp_dist"] + suppliers_interacted * coef(mod_mod)["suppliers_interacted"] + date_fe + officer_fe +
-            seniority_rank * coef(mod_mod)["seniority_rank"] +
-            normal_work * coef(mod_mod)["normal_work"] + ot_rate * coef(mod_mod)["ot_rate"]]
+all_pairs[, det_util := opp_dist * beta_od + suppliers_interacted * beta_si + date_fe + officer_fe +
+            seniority_rank * beta_sr + normal_work * beta_nw + ot_rate * beta_ot]
 
 ### for each date, compute the total ot hours and total ot instances.
 ## assign based on number of instances, assume even hours distribution
@@ -54,51 +60,86 @@ all_pairs[, tot_ot_among := sum(ot_work), by = "analysis_workdate"]
 setkey(all_pairs, "analysis_workdate", "num_emp1")
 
 #' ---------------------------------------------------------------------------
-#' RUN SIMULATION
+#' RUN SIMULATION (parallel)
 #' ---------------------------------------------------------------------------
 
 max_iter <- 2500
-results <- data.table()
-results_byworker <- data.table()
-log_message(paste0("Starting random assignment simulation with ", max_iter, " iterations"))
 
-for (iter in 1:max_iter) {
-  if (iter %% 100 == 0) log_message(paste0("Iteration: ", iter))
+## Slim down to needed columns
+keep_cols <- c("num_emp1", "analysis_workdate", "ot_rate", "det_util",
+               "opp_dist", "suppliers_interacted",
+               "tot_ot_among", "all_othours", "ot_work")
+ap_slim <- all_pairs[, ..keep_cols]
+
+## Generate per-iteration seeds
+iter_seeds <- sample.int(.Machine$integer.max, max_iter)
+
+run_one_random_iter <- function(iter, ap, beta_ot, beta_od, beta_si) {
+  library(data.table)
+  dt <- copy(ap)
+  n <- nrow(dt)
 
   ## those who work are just those randomly with the highest value
-  all_pairs[, rand_assign := runif(.N)]
-  all_pairs[, sim_work := frank(rand_assign, ties.method = "random") <= tot_ot_among, by = "analysis_workdate"]
-
-  stopifnot(sum(all_pairs$sim_work) == sum(all_pairs$ot_work))
+  dt[, rand_assign := runif(n)]
+  dt[, sim_work := frank(rand_assign, ties.method = "random") <= tot_ot_among, by = "analysis_workdate"]
 
   ## draw logit shock
-  all_pairs[, true_utility := det_util + rlogis(.N)]
-  all_pairs[, sim_win_wage := ot_rate]
+  dt[, true_utility := det_util + rlogis(n)]
+  dt[, sim_win_wage := ot_rate]
 
-  ## non-wage utility delivered is then true utility but less wages, connections, and with max connectedness piece added.
-  all_pairs[, true_valuation := (true_utility -
-                                   (ot_rate * coef(mod_mod)["ot_rate"] + opp_dist * coef(mod_mod)["opp_dist"] + suppliers_interacted * coef(mod_mod)["suppliers_interacted"])) / (coef(mod_mod)["ot_rate"])]
+  ## non-wage utility delivered
+  dt[, true_valuation := (true_utility -
+                           (ot_rate * beta_ot + opp_dist * beta_od + suppliers_interacted * beta_si)) / beta_ot]
 
-  all_pairs[, sim_value := sim_work * true_valuation, by = "analysis_workdate"]
-  all_pairs[, sim_payment := (sim_win_wage) * sim_work * all_othours / tot_ot_among]
-  # worker surplus is then true utility (already includes wage)
-  all_pairs[, worker_surplus := sim_work * (true_utility / (coef(mod_mod)["ot_rate"]))]
+  dt[, sim_value := sim_work * true_valuation]
+  dt[, sim_payment := fifelse(tot_ot_among > 0L, sim_win_wage * sim_work * all_othours / tot_ot_among, 0)]
+  dt[, worker_surplus := sim_work * (true_utility / beta_ot)]
 
-  byemp <- all_pairs[, .(ot_tot = sum(sim_work)), by = "num_emp1"]
+  byemp <- dt[, .(ot_tot = sum(sim_work)), by = "num_emp1"]
   setorder(byemp, "ot_tot", "num_emp1")
   byemp[, position := (1:.N) / .N]
   byemp[, cum_ot := cumsum(ot_tot) / sum(ot_tot)]
   byemp[, is_90th := position >= 0.9 & shift(position) < 0.9]
-  stopifnot(nrow(byemp[is_90th == 1]) == 1)
+  stopifnot(nrow(byemp[is_90th == TRUE]) == 1)
 
-  results <- rbind(results, data.table(sim_num = iter,
-                                       worker_value = sum(all_pairs$sim_value),
-                                       worker_surplus = sum(all_pairs$worker_surplus),
-                                       wage_bill = sum(all_pairs$sim_payment),
-                                       share_top10 = 1 - byemp[is_90th == 1]$cum_ot[1]))
-  results_byworker <- rbind(results_byworker, all_pairs[sim_work == 1, .(sim_num = iter, total_ot = sum(sim_work), worker_surplus = sum(worker_surplus), total_ot_pay = sum(sim_payment), max_win_wage = max(sim_win_wage), min_win_wage = min(sim_win_wage),
-                                                                          avg_win_wage = mean(sim_win_wage)), by = "num_emp1"])
+  res <- data.table(sim_num = iter,
+                    worker_value = sum(dt$sim_value),
+                    worker_surplus = sum(dt$worker_surplus),
+                    wage_bill = sum(dt$sim_payment),
+                    share_top10 = 1 - byemp[is_90th == TRUE]$cum_ot[1])
+
+  res_bw <- dt[sim_work == TRUE, .(sim_num = iter,
+                                    total_ot = sum(sim_work),
+                                    worker_surplus = sum(worker_surplus),
+                                    total_ot_pay = sum(sim_payment),
+                                    max_win_wage = max(sim_win_wage),
+                                    min_win_wage = min(sim_win_wage),
+                                    avg_win_wage = mean(sim_win_wage)),
+               by = "num_emp1"]
+
+  list(res = res, res_bw = res_bw)
 }
+
+n_cores <- min(detectCores() - 1, 10)
+log_message(paste0("Starting random assignment simulation with ", max_iter, " iterations on ", n_cores, " cores"))
+
+cl <- makeCluster(n_cores)
+clusterExport(cl, c("ap_slim", "beta_ot", "beta_od", "beta_si", "run_one_random_iter", "iter_seeds"), envir = environment())
+
+out <- parLapply(cl, seq_len(max_iter), function(iter) {
+  set.seed(iter_seeds[iter])
+  run_one_random_iter(iter, ap_slim, beta_ot, beta_od, beta_si)
+})
+
+stopCluster(cl)
+log_message("Parallel run complete, collecting results")
+
+results         <- rbindlist(lapply(out, `[[`, "res"))
+results_byworker <- rbindlist(lapply(out, `[[`, "res_bw"))
+rm(out); gc()
+
+setorder(results, "sim_num")
+setorder(results_byworker, "sim_num", "num_emp1")
 
 #' ---------------------------------------------------------------------------
 #' SAVE RESULTS

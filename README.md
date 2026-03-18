@@ -56,6 +56,7 @@ wheel_code/
 ├── 02_04_decomp_pref_network.R      # Preference vs. network decomposition
 ├── 02_05_labor_supply.R             # Labor supply analysis
 │
+├── 03_00_sim_frontier.R              # Simulation: efficiency-equity frontier
 ├── 03_01_sim_random.R               # Simulation: random allocation
 ├── 03_02_auction_sim.R              # Simulation: auction mechanisms
 ├── 03_03_sim_informal.R             # Simulation: informal trading
@@ -63,8 +64,6 @@ wheel_code/
 ├── 03_05_sim_informal_perfect.R     # Simulation: perfect-information trading
 ├── 03_98_heatmap.R                  # Simulation heatmap visualization
 ├── 03_99_compare_sims.R             # Cross-simulation comparison
-│
-├── 04_00_elasticity_did.R           # Elasticity difference-in-differences
 │
 ├── data/                            # Intermediate data files (gitignored)
 ├── out/figures/                     # Output figures (gitignored)
@@ -97,7 +96,6 @@ Run via `source("run_prep_data.R")`. Steps are skipped automatically when inputs
 | 2 | `02_00_estimate.R` (main estimation) | Tier 0 |
 | 3 | `02_01` -- `02_05` (estimation analysis), `03_00` -- `03_05` (simulations) | Tier 2 |
 | 4 | `03_98_heatmap.R`, `03_99_compare_sims.R` | Tier 3 |
-| 5 | `04_00_elasticity_did.R` | Tier 0 |
 
 ## Configuration
 

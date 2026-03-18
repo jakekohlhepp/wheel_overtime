@@ -18,8 +18,11 @@ stopifnot('Date' %in% names(holidays))
 holidays[, date := as.Date(Date, format = '%m/%d/%Y')]
 stopifnot(all(!is.na(holidays$date)))
 holidays <- holidays[, .(holiday = Holiday, date)]
+attr(holidays$holiday, 'label') <- 'Holiday'
+attr(holidays$holiday, 'format.stata') <- '%35s'
 attr(holidays$date, 'format.stata') <- '%td'
 
 write_dta(holidays, output_path, version = 14)
 log_message(paste('Saved', output_path))
 log_complete(success = TRUE)
+

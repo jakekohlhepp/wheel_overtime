@@ -21,11 +21,10 @@ ensure_directory(CONFIG$figures_dir)
 RUN_EST_SAMPLE    <- TRUE
 RUN_FACTS         <- TRUE
 RUN_EVENT_STUDIES <- TRUE
-RUN_ESTIMATION    <- FALSE
-RUN_EST_ANALYSIS  <- FALSE
-RUN_SIMULATIONS   <- FALSE
-RUN_SIM_COMPARE   <- FALSE
-RUN_ELASTICITY    <- FALSE
+RUN_ESTIMATION    <- TRUE
+RUN_EST_ANALYSIS  <- TRUE
+RUN_SIMULATIONS   <- TRUE
+RUN_SIM_COMPARE   <- TRUE
 
 pipeline_results <- list()
 
@@ -167,6 +166,11 @@ if (RUN_EST_ANALYSIS) {
 sim_outputs <- list()
 
 if (RUN_SIMULATIONS) {
+  run_step("03_00_sim_frontier",
+           "03_00_sim_frontier.R",
+           deps = c("config.R", "03_00_sim_frontier.R", est_sample_path, estimate_path),
+           outputs = file.path(CONFIG$data_dir, "03_00_sim_frontier.rds"))
+
   sim_scripts <- c(
     "03_01_sim_random",
     "03_02_auction_sim",
@@ -194,16 +198,6 @@ if (RUN_SIM_COMPARE) {
   run_step("03_99_compare_sims",
            "03_99_compare_sims.R",
            deps = c("config.R", "03_99_compare_sims.R", est_sample_path, estimate_path))
-}
-
-#' -----------------------------------------------------------------------------
-#' TIER 6: Additional analyses
-#' -----------------------------------------------------------------------------
-
-if (RUN_ELASTICITY) {
-  run_step("04_00_elasticity_did",
-           "04_00_elasticity_did.R",
-           deps = c("config.R", "04_00_elasticity_did.R", est_sample_path))
 }
 
 #' -----------------------------------------------------------------------------

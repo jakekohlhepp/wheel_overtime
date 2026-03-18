@@ -188,8 +188,8 @@ stata_month_num <- function(x) {
 
 stata_week_num <- function(x, config = CONFIG) {
   x <- as.Date(x)
-  week_start <- x - as.POSIXlt(x, tz = "UTC")$wday
-  as.integer((week_start - config$stata_week_origin) / 7)
+  parts <- as.POSIXlt(x, tz = 'UTC')
+  as.integer((parts$year + 1900L - 1960L) * 52L + pmin(floor(parts$yday / 7), 51L))
 }
 
 format_stata_date <- function(x) {
@@ -207,8 +207,15 @@ format_stata_datetime <- function(x) {
 }
 
 format_stata_week <- function(x) {
-  out <- rep("", length(x))
+  if (inherits(x, 'Date') || inherits(x, 'POSIXt')) {
+    x <- stata_week_num(x)
+  }
+  out <- rep('', length(x))
   keep <- !is.na(x)
-  out[keep] <- paste0(format(as.Date(x[keep]), "%Y"), "w", format(as.Date(x[keep]), "%U"))
+  year <- 1960L + (as.integer(x[keep]) %/% 52L)
+  week <- (as.integer(x[keep]) %% 52L) + 1L
+  out[keep] <- paste0(year, 'w', week)
   out
 }
+
+

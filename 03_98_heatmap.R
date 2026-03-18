@@ -50,7 +50,6 @@ max_benchmark <- auctions_sum$mean_allocative[1]
 
 log_message("Combining simulation results across regimes")
 results <- readRDS(file.path(CONFIG$data_dir, "03_03_sim_informal.rds"))
-setnames(results, "network_reduce", "network_reduction")
 results[, regime := "Observed"]
 results_together <- copy(results)
 results <- readRDS(file.path(CONFIG$data_dir, "03_05_sim_informal_perfect.rds"))
@@ -72,21 +71,28 @@ agg_res[, access_cost := -access_cost / coef(mod_mod)['ot_rate'] * avg_ot_hours]
 log_message("Creating continuous heatmap")
 for_disp <- copy(agg_res[network_reduction <= 5 & access_cost <= 400])
 
-ggplot(for_disp, aes(access_cost, network_reduction, fill = avg_alloc)) +
+p_cont <- ggplot(for_disp, aes(access_cost, network_reduction, fill = avg_alloc)) +
   geom_tile(width = max(for_disp$access_cost) / 5, height = max(for_disp$network_reduction) / 4) + theme_bw() + scale_fill_distiller(palette = "RdYlGn", direction = 1) +
-  ylab("Reduction per Potential Supplier ($)") +
-  xlab("Overtime Access Cost ($)") + facet_wrap(~ regime, ncol = 2) +
   geom_vline(xintercept = -coef(mod_mod)['opp_dist'] / coef(mod_mod)['ot_rate'] * avg_ot_hours, linetype = "dashed") +
   geom_hline(yintercept = coef(mod_mod)['suppliers_interacted'] / coef(mod_mod)['ot_rate'] * avg_ot_hours, linetype = "dashed") +
   facet_wrap(~ regime, ncol = 2) +
   ylab("Reduction per Potential Supplier ($)") +
   xlab("Overtime Access Cost ($)")
+ggsave(file.path(CONFIG$figures_dir, "03_98_heatmap_continuous.png"), p_cont, width = 12, height = 8, units = "in")
 
 #' ---------------------------------------------------------------------------
 #' DISCRETE HEATMAP
 #' ---------------------------------------------------------------------------
 
 log_message("Creating discrete heatmaps")
+## Compute reference line positions before converting to factors
+est_access_cost <- -coef(mod_mod)['opp_dist'] / coef(mod_mod)['ot_rate'] * avg_ot_hours
+est_network_red <- coef(mod_mod)['suppliers_interacted'] / coef(mod_mod)['ot_rate'] * avg_ot_hours
+ac_levels <- sort(unique(agg_res$access_cost))
+nr_levels <- sort(unique(agg_res$network_reduction))
+ref_ac_idx <- which.min(abs(ac_levels - est_access_cost))
+ref_nr_idx <- which.min(abs(nr_levels - est_network_red))
+
 ## label factor variables for viewing
 agg_res[, network_reduction := as.factor(network_reduction)]
 agg_res[, access_cost := as.factor(access_cost)]
@@ -102,8 +108,8 @@ ensure_directory(CONFIG$figures_dir)
 
 ggplot(agg_res, aes(access_cost, network_reduction, fill = avg_alloc)) +
   geom_tile() + theme_bw() + scale_fill_distiller(palette = "RdYlGn", direction = 1) +
-  geom_vline(xintercept = as.numeric(labels(agg_res$access_cost)[which(levels(agg_res$access_cost) == as.character(-coef(mod_mod)['opp_dist'] / coef(mod_mod)['ot_rate'] * avg_ot_hours))]), linetype = "dashed") +
-  geom_hline(yintercept = as.numeric(labels(agg_res$network_reduction)[which(levels(agg_res$network_reduction) == as.character(coef(mod_mod)['suppliers_interacted'] / coef(mod_mod)['ot_rate'] * avg_ot_hours))]), linetype = "dashed") +
+  geom_vline(xintercept = ref_ac_idx, linetype = "dashed") +
+  geom_hline(yintercept = ref_nr_idx, linetype = "dashed") +
   facet_wrap(~ regime, ncol = 2) +
   ylab("Reduction per Potential Supplier ($)") +
   xlab("Overtime Access Cost ($)") +
@@ -125,8 +131,8 @@ lab_less_y[!as.logical(1:length(lab_less_y) %% 2)] <- ""
 
 ggplot(agg_res, aes(access_cost, network_reduction, fill = avg_alloc)) +
   geom_tile() + theme_bw() + scale_fill_fermenter(palette = "RdYlGn", direction = 1) +
-  geom_vline(xintercept = as.numeric(labels(agg_res$access_cost)[which(levels(agg_res$access_cost) == as.character(-coef(mod_mod)['opp_dist'] / coef(mod_mod)['ot_rate'] * avg_ot_hours))]), linetype = "dashed") +
-  geom_hline(yintercept = as.numeric(labels(agg_res$network_reduction)[which(levels(agg_res$network_reduction) == as.character(coef(mod_mod)['suppliers_interacted'] / coef(mod_mod)['ot_rate'] * avg_ot_hours))]), linetype = "dashed") +
+  geom_vline(xintercept = ref_ac_idx, linetype = "dashed") +
+  geom_hline(yintercept = ref_nr_idx, linetype = "dashed") +
   facet_wrap(~ regime, ncol = 2) +
   ylab("Reduction per Potential Supplier ($)") +
   xlab("Overtime Access Cost ($)") +

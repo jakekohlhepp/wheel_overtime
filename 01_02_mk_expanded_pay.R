@@ -22,7 +22,14 @@ ensure_directory(CONFIG$output_dir)
 
 first_non_missing <- function(x) {
   keep <- which(!is.na(x))
-  if (length(keep) == 0) return(NA)
+  if (length(keep) == 0) {
+    if (inherits(x, 'Date')) return(as.Date(NA))
+    if (inherits(x, 'POSIXct')) return(as.POSIXct(NA, origin = '1970-01-01', tz = 'UTC'))
+    if (is.character(x)) return(NA_character_)
+    if (is.integer(x)) return(NA_integer_)
+    if (is.numeric(x)) return(NA_real_)
+    return(NA)
+  }
   x[keep[1]]
 }
 
@@ -118,24 +125,36 @@ terms[, diff := as.numeric(analysis_workdate[.N] - analysis_workdate[1]), by = e
 stopifnot(all(terms$diff <= 365))
 terms <- terms[, .(term_date = analysis_workdate[1]), by = employee_name]
 
-work_keep <- pay[work == 1 | grepl(' IOD ', variation_description, fixed = TRUE) | out_type == 1]
+is_work <- !is.na(pay$work) & pay$work == 1
+is_iod_marker <- !is.na(pay$variation_description) &
+  grepl(' IOD ', pay$variation_description, fixed = TRUE)
+is_out_type1 <- !is.na(pay$out_type) & pay$out_type == 1
+
+work_keep <- pay[is_work | is_iod_marker | is_out_type1]
 work_keep[, test_rate := pay_amount / hours]
-work_keep <- work_keep[!(test_rate == 0 & work == 1)]
-work_keep[, iod_flag := as.numeric(grepl('IOD', variation_description, fixed = TRUE))]
+work_keep[, is_work := !is.na(work) & work == 1]
+work_keep[, drop_zero_work_rate := !is.na(test_rate) & test_rate == 0 & is_work]
+work_keep <- work_keep[drop_zero_work_rate == FALSE]
+work_keep[, drop_zero_work_rate := NULL]
+work_keep[, iod_flag := fifelse(!is.na(variation_description) & grepl('IOD', variation_description, fixed = TRUE), 1, NA_real_)]
 stopifnot(work_keep[, constant_within_group(dept), by = .(employee_name, work_date)][, all(V1)])
 
-work_keep[, varot_hours := fifelse(grepl('overtime', tolower(variation_description), fixed = TRUE) & work == 1, hours, 0)]
-work_keep[, varstandard_hours := fifelse(!grepl('overtime', tolower(variation_description), fixed = TRUE), hours, 0)]
-work_keep[, types := fifelse(work == 1 | iod_flag == 1, 'not leave', NA_character_)]
-work_keep[out_type == 1, types := cleaned_variation_desc]
+work_keep[, is_overtime := !is.na(variation_description) &
+  grepl('overtime', tolower(variation_description), fixed = TRUE)]
+work_keep[, varot_hours := fifelse(is_overtime & is_work, hours, 0)]
+work_keep[, varstandard_hours := fifelse(!is_overtime, hours, 0)]
+work_keep[, types := fifelse(is_work | iod_flag == 1, 'not leave', NA_character_)]
+work_keep[!is.na(out_type) & out_type == 1, types := cleaned_variation_desc]
 stopifnot(all(!is.na(work_keep$types)))
-stopifnot(all(work_keep[work == 1, var_rate] < CONFIG$max_work_rate))
+stopifnot(all(work_keep[!is.na(work) & work == 1, var_rate] < CONFIG$max_work_rate))
 work_keep[, max_rate := max(var_rate), by = .(employee_name, work_date)]
 stopifnot(all(work_keep$max_rate >= 0))
 work_keep[max_rate > CONFIG$max_work_rate, max_rate := -99]
-work_keep[, ot_pay_amount := pay_amount * as.numeric(grepl('overtime', tolower(variation_description), fixed = TRUE))]
-work_keep[, work_pay_amount := pay_amount * work]
+work_keep[, ot_pay_amount := pay_amount * as.numeric(is_overtime)]
+work_keep[, work_pay_amount := pay_amount * as.numeric(is_work)]
+work_keep[, c('is_work', 'is_overtime') := NULL]
 setnames(work_keep, 'div', 'geo_div')
+work_keep[!is.na(geo_div) & geo_div < 800, geo_div := NA_real_]
 
 work_day <- work_keep[, collapse_sum_first(.SD,
   by_cols = c('employee_name', 'work_date', 'dept', 'yearsoldonworkdate', 'geo_div', 'types', 'sick_subset', 'maximum_gap_2015', 'max_rate'),
@@ -153,7 +172,7 @@ work_day <- work_day[, collapse_sum_first(.SD,
 ), by = .(employee_name, work_date, dept, yearsoldonworkdate, geo_div, types, sick_subset, maximum_gap_2015, max_rate)]
 
 work_day[, leave_hours := fifelse(types == 'leave', tot_hours, 0)]
-work_day[, sick_hours := fifelse(sick_subset == 1, tot_hours, 0)]
+work_day[, sick_hours := fifelse(!is.na(sick_subset) & sick_subset == 1, tot_hours, 0)]
 work_day[types == 'leave', tot_hours := 0]
 work_day <- work_day[, collapse_sum_first(.SD,
   by_cols = c('employee_name', 'work_date', 'dept', 'yearsoldonworkdate', 'geo_div', 'maximum_gap_2015', 'max_rate'),
@@ -161,16 +180,18 @@ work_day <- work_day[, collapse_sum_first(.SD,
   first_cols = c('iod_flag')
 ), by = .(employee_name, work_date, dept, yearsoldonworkdate, geo_div, maximum_gap_2015, max_rate)]
 
-fornetwork <- work_day[varstandard_hours > 0 | varot_hours > 0][!is.na(geo_div), .(
-  geo_div,
+fornetwork <- work_day[(varstandard_hours > 0 | varot_hours > 0) & !is.na(geo_div), .(
   employee_name,
+  geo_div,
   analysis_workdate = as.Date(work_date)
 )]
 attr(fornetwork$analysis_workdate, 'format.stata') <- '%td'
 write_dta(fornetwork, fornetwork_path, version = 14)
 log_message(paste('Saved', fornetwork_path))
 
-setorder(work_day, employee_name, work_date, tot_hours, geo_div)
+work_day[, geo_div_sort := fifelse(is.na(geo_div), Inf, geo_div)]
+setorder(work_day, employee_name, work_date, tot_hours, geo_div_sort)
+work_day[, geo_div_sort := NULL]
 stopifnot(work_day[, max(.N), by = .(employee_name, work_date)][, max(V1)] <= 2)
 work_day[, `:=`(
   div1 = geo_div[1],
@@ -237,7 +258,7 @@ setorder(employee_panel, employee_name)
 employee_levels <- sort(unique(employee_panel$employee_name))
 emp_labels <- stats::setNames(seq_along(employee_levels), employee_levels)
 
-expanded_panel <- employee_panel[, .(analysis_workdate = seq(date_start, date_end, by = 'day')), by = employee_name]
+expanded_panel <- employee_panel[, .(analysis_workdate = seq(min(date_start, date_end), max(date_start, date_end), by = 'day')), by = employee_name]
 expanded_panel[, empid := labelled(match(employee_name, employee_levels), labels = emp_labels)]
 
 work_merge[, data_flag := 1L]
@@ -265,6 +286,8 @@ stopifnot(all(!is.na(expanded_panel$original_hire_date)))
 stopifnot(all(!is.na(expanded_panel$job_status)))
 
 employee_flags <- expanded_panel[, .(all_miss = !any(mold == 3L)), by = employee_name]
+log_message(paste('all_miss count', sum(employee_flags$all_miss)))
+log_message(paste('all_miss sample', paste(employee_flags[all_miss == TRUE, employee_name], collapse = ', ')))
 stopifnot(sum(employee_flags$all_miss) == 44L)
 expanded_panel <- expanded_panel[employee_name %chin% employee_flags[all_miss == FALSE, employee_name]]
 expanded_panel[, mold := NULL]
@@ -281,7 +304,7 @@ holidays <- as.data.table(read_dta(holidays_path))
 expanded_panel <- merge(expanded_panel, holidays, by = 'date', all.x = TRUE, sort = FALSE)
 expanded_panel[, is_holiday := as.numeric(!is.na(holiday))]
 expanded_panel[, date := NULL]
-expanded_panel[, rain := as.numeric(prcp > 0)]
+expanded_panel[, rain := fifelse(is.na(prcp), 1, as.numeric(prcp > 0))]
 
 setcolorder(expanded_panel, c(
   'employee_name', 'analysis_workdate', 'empid', 'dept', 'yearsoldonworkdate',
@@ -306,4 +329,14 @@ attr(expanded_panel$an_week, 'format.stata') <- '%tw'
 write_dta(expanded_panel, working_path, version = 14)
 log_message(paste('Saved', working_path))
 log_complete(success = TRUE)
+
+
+
+
+
+
+
+
+
+
 

@@ -110,6 +110,7 @@ for (col in c('work', 'new_code', 'out_type', 'sick_subset')) {
 
 pay <- copy(raw)
 pay[, cleaned_variation_desc := gsub('"', '', variation_description, fixed = TRUE)]
+setorder(pay, employee_name, work_date, variation_description, v1)
 pay <- unique(pay[, .(
   employee_name,
   payroll_year,
@@ -145,13 +146,14 @@ pay[is.na(temp_gap), temp_gap := 0]
 pay[temp_period == FALSE, temp_gap := 0]
 pay[, maximum_gap_2015 := {
   keep <- temp_date >= CONFIG$injury_window_start
-  if (!any(keep)) {
-    rep(0, .N)
-  } else {
-    max_gap <- max(temp_gap[keep], na.rm = TRUE)
-    rep(max_gap, .N)
+  out <- rep(0, .N)
+  if (any(keep)) {
+    out[keep] <- max(temp_gap[keep], na.rm = TRUE)
   }
+  out
 }, by = employee_name]
+setorderv(pay, c('employee_name', 'maximum_gap_2015', 'temp_date'), order = c(1L, -1L, 1L))
+pay[, maximum_gap_2015 := maximum_gap_2015[1], by = employee_name]
 pay[, gap_end_date := as.Date(NA)]
 pay[temp_gap >= CONFIG$gap_group_days, gap_end_date := temp_date]
 pay[, gap_end_date := {
@@ -197,6 +199,10 @@ attr(pay$cal_month, 'format.stata') <- '%tm'
 write_dta(pay, pay_path, version = 14)
 log_message(paste('Saved', pay_path))
 log_complete(success = TRUE)
+
+
+
+
 
 
 

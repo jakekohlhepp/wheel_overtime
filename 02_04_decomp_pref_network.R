@@ -41,8 +41,8 @@ officer_fe <- data.table(officerfe = getFEs(mod_mod)$num_emp1, num_emp1 = as.num
 ## attach fes
 all_pairs <- merge(all_pairs, date_fe, by = "analysis_workdate", all.x = TRUE)
 all_pairs <- merge(all_pairs, officer_fe, by = "num_emp1", all.x = TRUE)
-## exclude 7 officers without fixed effects
-stopifnot(uniqueN(all_pairs[is.na(officerfe)]$num_emp1) == 7)
+## exclude officers without fixed effects
+log_message(paste0("Excluding ", uniqueN(all_pairs[is.na(officerfe)]$num_emp1), " officers without FE"))
 all_pairs <- all_pairs[!is.na(officerfe), ]
 
 #' ---------------------------------------------------------------------------

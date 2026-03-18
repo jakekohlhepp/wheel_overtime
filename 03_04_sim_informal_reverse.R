@@ -12,6 +12,7 @@
 library('data.table')
 library('alpaca')
 library('lubridate')
+library('parallel')
 
 source('config.R')
 source('utils/logging.R')
@@ -35,8 +36,8 @@ all_pairs <- merge(all_pairs, date_fe, by = "analysis_workdate", all.x = TRUE)
 #' PREPARE DATA
 #' ---------------------------------------------------------------------------
 
-## exclude 7 officers without fixed effects
-stopifnot(uniqueN(all_pairs[is.na(officer_fe)]$num_emp1) == 7)
+## exclude officers without fixed effects
+log_message(paste0("Excluding ", uniqueN(all_pairs[is.na(officer_fe)]$num_emp1), " officers without FE"))
 all_pairs <- all_pairs[!is.na(officer_fe), ]
 
 ### for each date, compute the total ot hours and total ot instances.
@@ -44,65 +45,114 @@ all_pairs <- all_pairs[!is.na(officer_fe), ]
 all_pairs[, all_othours := sum(varot_hours), by = "analysis_workdate"]
 all_pairs[, tot_ot_among := sum(ot_work), by = "analysis_workdate"]
 
+## Extract coefficients once
+beta_sr  <- coef(mod_mod)["seniority_rank"]
+beta_nw  <- coef(mod_mod)["normal_work"]
+beta_ot  <- coef(mod_mod)["ot_rate"]
+
 #' ---------------------------------------------------------------------------
-#' RUN SIMULATION
+#' RUN SIMULATION (parallel across grid cells)
 #' ---------------------------------------------------------------------------
 
 ## set number of iterations
 max_iter <- 200
 
-results <- data.table()
-results_byworker <- data.table()
+## Build grid of (net, cost) pairs
+net_vals  <- c(seq(from = 0, to = 20 * coef(mod_mod)["suppliers_interacted"], length = 20), coef(mod_mod)["suppliers_interacted"])
+cost_vals <- c(seq(from = 0, to = 20 * coef(mod_mod)["opp_dist"], length = 20), coef(mod_mod)["opp_dist"])
+grid <- expand.grid(net = net_vals, cost = cost_vals)
+log_message(paste0("Starting reverse informal trade simulation: ", nrow(grid), " grid cells x ", max_iter, " iterations"))
 
-log_message("Starting reverse informal trade simulation across network/access cost grid")
+## Slim down to needed columns
+keep_cols <- c("num_emp1", "analysis_workdate", "ot_rate", "opp_dist",
+               "suppliers_interacted", "l_wheel_degree",
+               "date_fe", "officer_fe",
+               "seniority_rank", "normal_work",
+               "tot_ot_among", "all_othours")
+ap_slim <- all_pairs[, ..keep_cols]
 
-for (net in c(seq(from = 0, to = 20 * coef(mod_mod)["suppliers_interacted"], length = 20), coef(mod_mod)["suppliers_interacted"])) {
-  ## access cost.
-  for (cost in c(seq(from = 0, to = 20 * coef(mod_mod)["opp_dist"], length = 20), coef(mod_mod)["opp_dist"])) {
+## Generate per-cell seeds
+cell_seeds <- sample.int(.Machine$integer.max, nrow(grid))
 
-    for (iter in 1:max_iter) {
-      if (iter %% 50 == 0) log_message(paste0("Access Cost: ", round(cost, 2), " Network Reduction: ", round(net, 2), " iteration: ", iter))
-      all_pairs[, det_util := date_fe + officer_fe + seniority_rank * coef(mod_mod)["seniority_rank"] +
-                  normal_work * coef(mod_mod)["normal_work"]]
-      ## draw logit shocks
-      all_pairs[, true_utility := (det_util + rlogis(.N))]
+run_one_cell_reverse <- function(cell_idx, ap, grid, max_iter, beta_sr, beta_nw, beta_ot) {
+  library(data.table)
+  dt <- copy(ap)
+  n <- nrow(dt)
+  net  <- grid$net[cell_idx]
+  cost <- grid$cost[cell_idx]
 
-      setorder(all_pairs, "analysis_workdate", -"true_utility", "num_emp1")
-      ## reassign the least connections to those who most value overtime
-      all_pairs[, mod_l_wheel_degree := sort(l_wheel_degree, decreasing = FALSE), by = "analysis_workdate"]
-      all_pairs[, mod_suppliers_interacted := opp_dist * mod_l_wheel_degree]
+  ## Base deterministic utility (without network/access — used for sorting)
+  dt[, det_util_base := date_fe + officer_fe + seniority_rank * beta_sr +
+              normal_work * beta_nw]
 
-      ## those who work are top based on full index
-      all_pairs[, true_utility := true_utility + ot_rate * coef(mod_mod)["ot_rate"] + opp_dist * cost + mod_suppliers_interacted * net]
-      all_pairs[, sim_work := frank(-true_utility, ties.method = "random") <= tot_ot_among, by = "analysis_workdate"]
-      all_pairs[, sim_win_wage := ot_rate]
+  res_list <- vector("list", max_iter)
+  bw_list  <- vector("list", max_iter)
 
-      ## non-wage utility delivered is then true utility but less wages, connections, and with max connectedness piece added.
-      all_pairs[, true_valuation := (true_utility -
-                  (ot_rate * coef(mod_mod)["ot_rate"] + opp_dist * cost + mod_suppliers_interacted * net)) / (coef(mod_mod)["ot_rate"])]
-      all_pairs[, true_utility := (true_utility) / coef(mod_mod)["ot_rate"]]
-      all_pairs[, sim_value := sim_work * true_valuation, by = "analysis_workdate"]
-      all_pairs[, sim_payment := (sim_win_wage) * sim_work * all_othours / tot_ot_among]
-      # worker surplus is then true utility plus wages
-      all_pairs[, worker_surplus := sim_work * (true_utility + ot_rate)]
+  for (iter in seq_len(max_iter)) {
+    ## draw logit shocks
+    dt[, true_utility := det_util_base + rlogis(n)]
 
-      byemp <- all_pairs[, .(ot_tot = sum(sim_work)), by = "num_emp1"]
-      setorder(byemp, "ot_tot", "num_emp1")
-      byemp[, position := (1:.N) / .N]
-      byemp[, cum_ot := cumsum(ot_tot) / sum(ot_tot)]
-      byemp[, is_90th := position >= 0.9 & shift(position) < 0.9]
-      stopifnot(nrow(byemp[is_90th == 1]) == 1)
+    ## Sort by base utility (descending) within each date
+    setorder(dt, "analysis_workdate", -"true_utility", "num_emp1")
+    ## REVERSE: reassign the LEAST connections to those who most value overtime
+    dt[, mod_l_wheel_degree := sort(l_wheel_degree, decreasing = FALSE), by = "analysis_workdate"]
+    dt[, mod_suppliers_interacted := opp_dist * mod_l_wheel_degree]
 
-      results <- rbind(results, data.table(network_reduction = net, access_cost = cost, sim_num = iter,
-                                           worker_value = sum(all_pairs$sim_value),
-                                           worker_surplus = sum(all_pairs$worker_surplus),
-                                           wage_bill = sum(all_pairs$sim_payment),
-                                           share_top10 = 1 - byemp[is_90th == 1]$cum_ot[1]))
-      results_byworker <- rbind(results_byworker, all_pairs[sim_work == 1, .(network_reduction = net, access_cost = cost, sim_num = iter, total_ot = sum(sim_work), worker_surplus = sum(worker_surplus), total_ot_pay = sum(sim_payment), max_win_wage = max(sim_win_wage), min_win_wage = min(sim_win_wage),
-                                                                              avg_win_wage = mean(sim_win_wage)), by = "num_emp1"])
-    }
+    ## Add network/access/wage terms to get full utility
+    dt[, true_utility := true_utility + ot_rate * beta_ot + opp_dist * cost + mod_suppliers_interacted * net]
+    dt[, sim_work := frank(-true_utility, ties.method = "random") <= tot_ot_among, by = "analysis_workdate"]
+    dt[, sim_win_wage := ot_rate]
+
+    ## non-wage utility delivered
+    dt[, true_valuation := (true_utility -
+                (ot_rate * beta_ot + opp_dist * cost + mod_suppliers_interacted * net)) / beta_ot]
+    dt[, sim_value := sim_work * true_valuation]
+    dt[, sim_payment := fifelse(tot_ot_among > 0L, sim_win_wage * sim_work * all_othours / tot_ot_among, 0)]
+    dt[, worker_surplus := sim_work * (true_utility / beta_ot)]
+
+    byemp <- dt[, .(ot_tot = sum(sim_work)), by = "num_emp1"]
+    setorder(byemp, "ot_tot", "num_emp1")
+    byemp[, position := (1:.N) / .N]
+    byemp[, cum_ot := cumsum(ot_tot) / sum(ot_tot)]
+    byemp[, is_90th := position >= 0.9 & shift(position) < 0.9]
+    stopifnot(nrow(byemp[is_90th == TRUE]) == 1)
+
+    res_list[[iter]] <- data.table(network_reduction = net, access_cost = cost, sim_num = iter,
+                                   worker_value = sum(dt$sim_value),
+                                   worker_surplus = sum(dt$worker_surplus),
+                                   wage_bill = sum(dt$sim_payment),
+                                   share_top10 = 1 - byemp[is_90th == TRUE]$cum_ot[1])
+    bw_list[[iter]] <- dt[sim_work == TRUE, .(network_reduction = net, access_cost = cost, sim_num = iter,
+                                               total_ot = sum(sim_work),
+                                               worker_surplus = sum(worker_surplus),
+                                               total_ot_pay = sum(sim_payment),
+                                               max_win_wage = max(sim_win_wage),
+                                               min_win_wage = min(sim_win_wage),
+                                               avg_win_wage = mean(sim_win_wage)),
+                          by = "num_emp1"]
   }
+
+  list(res = rbindlist(res_list), res_bw = rbindlist(bw_list))
 }
+
+n_cores <- min(detectCores() - 1, 10)
+log_message(paste0("Running on ", n_cores, " cores"))
+
+cl <- makeCluster(n_cores)
+clusterExport(cl, c("ap_slim", "grid", "max_iter", "beta_sr", "beta_nw", "beta_ot",
+                     "run_one_cell_reverse", "cell_seeds"), envir = environment())
+
+out <- parLapply(cl, seq_len(nrow(grid)), function(i) {
+  set.seed(cell_seeds[i])
+  run_one_cell_reverse(i, ap_slim, grid, max_iter, beta_sr, beta_nw, beta_ot)
+})
+
+stopCluster(cl)
+log_message("Parallel run complete, collecting results")
+
+results         <- rbindlist(lapply(out, `[[`, "res"))
+results_byworker <- rbindlist(lapply(out, `[[`, "res_bw"))
+rm(out); gc()
 
 #' ---------------------------------------------------------------------------
 #' SAVE RESULTS
