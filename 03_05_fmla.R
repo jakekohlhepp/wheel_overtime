@@ -3,7 +3,7 @@
 #' =============================================================================
 #' Input:  data/02_01_estimation_sample.rds
 #'         Contact matrix via load_contact_matrix()
-#' Output: out/figures/01_05_fmla_twfe.png
+#' Output: out/figures/03_05_fmla_twfe.png
 #' =============================================================================
 
 source('config.R')
@@ -75,7 +75,7 @@ log_message("Estimating TWFE model")
 twfe <- feols(l_degree ~ i(rel_time, ref = -c(1, Inf)) | num_emp1 + analysis_workdate, data = all_pairs[does_leave == 0])
 
 ensure_directory(CONFIG$figures_dir)
-png(file.path(CONFIG$figures_dir, "01_05_fmla_twfe.png"), width = 900, height = 500)
+png(file.path(CONFIG$figures_dir, "03_05_fmla_twfe.png"), width = 900, height = 500)
 iplot(twfe, main = "", xlab = "Time to Treatment (Days)", ylab = "Connectedness",
       drop = "([3-9]\\d{1}|\\d{3})", lab.fit = "simple")
 dev.off()

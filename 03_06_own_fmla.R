@@ -2,7 +2,7 @@
 #' FAMILY MEDICAL LEAVE EVENT STUDY - OWN CONNECTEDNESS
 #' =============================================================================
 #' Input:  data/02_01_estimation_sample.rds
-#' Output: out/figures/01_05b_own_fmla.png
+#' Output: out/figures/03_06_own_fmla.png
 #' =============================================================================
 
 source('config.R')
@@ -58,7 +58,7 @@ summary(twfe)
 twfe <- feols(wheel_degree ~ i(rel_time, ref = -c(0, Inf)) | num_emp1 + analysis_workdate, data = all_pairs)
 
 ensure_directory(CONFIG$figures_dir)
-png(file.path(CONFIG$figures_dir, "01_05b_own_fmla.png"), width = 900, height = 500)
+png(file.path(CONFIG$figures_dir, "03_06_own_fmla.png"), width = 900, height = 500)
 iplot(twfe, main = "", xlab = "Time to Family Medical Leave (Days)", ylab = "Connectedness",
       drop = "([3-9]\\d{1}|\\d{3})", lab.fit = "simple")
 dev.off()

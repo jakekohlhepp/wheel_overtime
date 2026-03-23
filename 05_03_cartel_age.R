@@ -3,8 +3,8 @@
 #' =============================================================================
 #' Input:  data/02_01_estimation_sample.rds
 #'         data/04_01_estimate.Rdata
-#' Output: out/tables/02_03_cartel.tex
-#'         out/figures/02_03_age_valuation.png
+#' Output: out/tables/05_03_cartel.tex
+#'         out/figures/05_03_age_valuation.png
 #' =============================================================================
 
 ## cartel are those observed working more than 400 overtime shifts.
@@ -103,7 +103,7 @@ colnames(cartel) <- c("Officer ID", "Value", "Rank", "Value", "Rank", "Value", "
 ensure_directory(CONFIG$tables_dir)
 kable(cartel, "latex", align = "c", booktabs = TRUE, linesep = c(""), escape = F, caption = NA, label = NA) %>%
   add_header_above(c(" " = 1, "OT Shifts" = 2, "Avg. Connectedness" = 2, "Avg. Suppliers" = 2, "Fixed Effect" = 2)) %>%
-  cat(., file = file.path(CONFIG$tables_dir, "02_03_cartel.tex"))
+  cat(., file = file.path(CONFIG$tables_dir, "05_03_cartel.tex"))
 log_message("Saved cartel table")
 
 #' ---------------------------------------------------------------------------
@@ -123,7 +123,7 @@ ensure_directory(CONFIG$figures_dir)
 ggplot(data = by_emp, aes(x = age_on_20150101, y = valuation)) + geom_point(size = 2) + geom_smooth(method = 'lm', se = FALSE) + theme_bw() + xlab("Age on January 1, 2015 (Years)") + ylab("Officer Fixed Effect ($)") +
   theme_bw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.title = element_text(size = 30), axis.text = element_text(size = 20))
-ggsave(file.path(CONFIG$figures_dir, "02_03_age_valuation.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "05_03_age_valuation.png"), width = 12, height = 8, units = "in")
 log_message("Saved age-valuation plot")
 
 log_complete(success = TRUE)

@@ -6,8 +6,8 @@
 #'         20250207_bss_special_events/Building_and_Safety_...csv
 #'         data/05_02_val_special_events_filled.csv
 #' Output: data/05_02_val_special_events_blank.csv
-#'         out/tables/02_02_top10_fixed_effects.tex
-#'         out/tables/02_02_rain_dow_fe.tex
+#'         out/tables/05_02_top10_fixed_effects.tex
+#'         out/tables/05_02_rain_dow_fe.tex
 #' =============================================================================
 
 library('data.table')
@@ -69,7 +69,18 @@ log_message("Wrote blank special events CSV for manual fill-in")
 
 log_message("Building top 10 fixed effects table")
 
-withnames <- fread(file.path(CONFIG$data_dir, "05_02_val_special_events_filled.csv"))
+filled_path <- file.path(CONFIG$data_dir, "05_02_val_special_events_filled.csv")
+if (!file.exists(filled_path)) {
+  stop(paste0(
+    "Manual step required before this script can continue.\n",
+    "  1. Open:  data/05_02_val_special_events_blank.csv\n",
+    "  2. Add a 'notable_event' column with a short label for each of the top-10 dates\n",
+    "     (e.g. 'Rose Bowl', 'LA Marathon', 'Dodgers World Series', etc.).\n",
+    "  3. Save the result as:  data/05_02_val_special_events_filled.csv\n",
+    "  4. Re-run this script."
+  ))
+}
+withnames <- fread(filled_path)
 withnames[, analysis_workdate := mdy(analysis_workdate)]
 setorder(withnames, -"r_date_fe")
 withnames <- merge(withnames[, -"r_date_fe"], special[!is.na(r_date_fe)][1:10, c("analysis_workdate", "tot_ot", "r_date_fe")], by = "analysis_workdate", all.y = TRUE)
@@ -83,7 +94,7 @@ ensure_directory(CONFIG$tables_dir)
 
 ## do ot_count, valuation, name.
 kable(withnames, "latex", align = "c", booktabs = TRUE, linesep = c(""), escape = F, caption = NA, label = NA) %>%
-  cat(., file = file.path(CONFIG$tables_dir, "02_02_top10_fixed_effects.tex"))
+  cat(., file = file.path(CONFIG$tables_dir, "05_02_top10_fixed_effects.tex"))
 log_message("Saved top 10 fixed effects table")
 
 #' ---------------------------------------------------------------------------
@@ -106,7 +117,7 @@ fortable[, mean_fe := paste0("\\$", as.character(sprintf("%.2f", round(mean_fe, 
 fortable[, mean_count := paste0(as.character(sprintf("%.2f", round(mean_count, 2))))]
 colnames(fortable) <- c("Avg. Fixed Effect", "Avg. Overtime Shifts", "Number of Dates", "Type of Day")
 kable(fortable[, c("Type of Day", "Number of Dates", "Avg. Fixed Effect", "Avg. Overtime Shifts")], "latex", align = "c", booktabs = TRUE, linesep = c(""), escape = F, caption = NA, label = NA) %>%
-  cat(., file = file.path(CONFIG$tables_dir, "02_02_rain_dow_fe.tex"))
+  cat(., file = file.path(CONFIG$tables_dir, "05_02_rain_dow_fe.tex"))
 
 log_message("Saved rain and day-of-week table")
 log_complete(success = TRUE)

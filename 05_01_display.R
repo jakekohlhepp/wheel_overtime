@@ -3,9 +3,9 @@
 #' =============================================================================
 #' Input:  data/04_01_estimate.Rdata, data/04_01_estimate_probit.Rdata
 #'         data/02_01_estimation_sample.rds
-#' Output: out/tables/02_01_main_estimates.tex
-#'         out/figures/02_01_officer_fe.png
-#'         out/figures/02_01_date_fe.png
+#' Output: out/tables/05_01_main_estimates.tex
+#'         out/figures/05_01_officer_fe.png
+#'         out/figures/05_01_date_fe.png
 #' =============================================================================
 
 library('ggplot2')
@@ -67,7 +67,7 @@ output[type == "se", Variable := ""]
 
 ensure_directory(CONFIG$tables_dir)
 kable(output[, -"type"], "latex", align = "c", booktabs = TRUE, linesep = c(""), escape = F, caption = NA, label = NA) %>%
-  cat(., file = file.path(CONFIG$tables_dir, "02_01_main_estimates.tex"))
+  cat(., file = file.path(CONFIG$tables_dir, "05_01_main_estimates.tex"))
 
 log_message("Saved main estimates table")
 
@@ -91,7 +91,7 @@ ggplot(officer_fe, aes(x = officer_fe)) +
   theme_bw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.title = element_text(size = 30), axis.text = element_text(size = 30))
 
-ggsave(file.path(CONFIG$figures_dir, "02_01_officer_fe.png"), width = 10, height = 10, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "05_01_officer_fe.png"), width = 10, height = 10, units = "in")
 log_message("Saved officer FE histogram")
 
 ggplot(date_fe, aes(x = date_fe)) +
@@ -99,7 +99,7 @@ ggplot(date_fe, aes(x = date_fe)) +
   theme_bw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), axis.title = element_text(size = 30), axis.text = element_text(size = 30))
 
-ggsave(file.path(CONFIG$figures_dir, "02_01_date_fe.png"), width = 10, height = 10, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "05_01_date_fe.png"), width = 10, height = 10, units = "in")
 log_message("Saved date FE histogram")
 
 #' ---------------------------------------------------------------------------

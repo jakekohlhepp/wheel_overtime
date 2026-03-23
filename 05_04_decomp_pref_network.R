@@ -3,7 +3,7 @@
 #' =============================================================================
 #' Input:  data/02_01_estimation_sample.rds
 #'         data/04_01_estimate.Rdata
-#' Output: out/tables/02_04_decomp.tex
+#' Output: out/tables/05_04_decomp.tex
 #' =============================================================================
 
 library('data.table')
@@ -355,7 +355,7 @@ colnames(res) <- c("Channel", "Remove All Others", "Remove Just Channel", "Shapl
 
 ensure_directory(CONFIG$tables_dir)
 output <- kable(res, "latex", align = "c", booktabs = TRUE, linesep = c(""), escape = F, caption = NA, label = NA)
-cat(output, file = file.path(CONFIG$tables_dir, "02_04_decomp.tex"))
+cat(output, file = file.path(CONFIG$tables_dir, "05_04_decomp.tex"))
 
 log_message("Saved decomposition table")
 log_complete(success = TRUE)

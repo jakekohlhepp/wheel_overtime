@@ -5,11 +5,11 @@
 #'         data/{pre_network_prefix}{network_window_default}.csv (tenure, injury)
 #'         Contact matrix via load_contact_matrix() (for network plots)
 #'         {raw_pay_dir}/anonymized_data_073117.txt (bereavement, FMLA flags)
-#' Output: out/tables/01_00_summary_stats.tex
-#'         out/tables/01_00_summary_stats_officer.tex
-#'         out/tables/01_00_claim.tex
-#'         out/tables/01_00_nature.tex
-#'         out/figures/01_00_*.png (various descriptive plots)
+#' Output: out/tables/03_01_summary_stats.tex
+#'         out/tables/03_01_summary_stats_officer.tex
+#'         out/tables/03_01_claim.tex
+#'         out/tables/03_01_nature.tex
+#'         out/figures/03_01_*.png (various descriptive plots)
 #' =============================================================================
 
 source('config.R')
@@ -67,7 +67,7 @@ stopifnot(nrow(all_pairs) == CONFIG$expected_estimation_rows)
 
 ensure_directory(CONFIG$tables_dir)
 stargazer(sum_stat, header = FALSE, digits = 3,
-          out = file.path(CONFIG$tables_dir, "01_00_summary_stats.tex"),
+          out = file.path(CONFIG$tables_dir, "03_01_summary_stats.tex"),
           single.row = TRUE, summary.stat = c("mean", "sd", "p25", "p75"))
 
 #' ---------------------------------------------------------------------------
@@ -88,7 +88,7 @@ stargazer(byofficer, header = FALSE, type = 'text', summary.stat = c("mean", "sd
 stopifnot(nrow(byofficer) == CONFIG$expected_estimation_officers)
 
 stargazer(byofficer, header = FALSE, digits = 3,
-          out = file.path(CONFIG$tables_dir, "01_00_summary_stats_officer.tex"),
+          out = file.path(CONFIG$tables_dir, "03_01_summary_stats_officer.tex"),
           single.row = TRUE, summary.stat = c("mean", "sd", "p25", "p75"))
 
 #' ---------------------------------------------------------------------------
@@ -98,11 +98,11 @@ stargazer(byofficer, header = FALSE, digits = 3,
 log_message("Creating claim and injury tables")
 fortable <- all_pairs[matched_injury == 1, .(count = .N), by = c("claimcause")]
 setorder(fortable, -"count")
-print(xtable(fortable, type = "latex"), file = file.path(CONFIG$tables_dir, "01_00_claim.tex"), include.rownames = FALSE)
+print(xtable(fortable, type = "latex"), file = file.path(CONFIG$tables_dir, "03_01_claim.tex"), include.rownames = FALSE)
 
 fortable <- all_pairs[matched_injury == 1, .(count = .N), by = c("natureofinjury")]
 setorder(fortable, -"count")
-print(xtable(fortable, type = "latex"), file = file.path(CONFIG$tables_dir, "01_00_nature.tex"), include.rownames = FALSE)
+print(xtable(fortable, type = "latex"), file = file.path(CONFIG$tables_dir, "03_01_nature.tex"), include.rownames = FALSE)
 
 #' ---------------------------------------------------------------------------
 #' AGE DISPERSION
@@ -116,7 +116,7 @@ ggplot(all_pairs, aes(x = an_age)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15)) + theme_bw()
 
-ggsave(file.path(CONFIG$figures_dir, "01_00_age_dispersion.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "03_01_age_dispersion.png"), width = 12, height = 8, units = "in")
 
 #' ---------------------------------------------------------------------------
 #' WHEEL TURNING
@@ -132,7 +132,7 @@ ggplot(unique(all_pairs[floor_date(analysis_workdate, unit = "month") == as.Date
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15))
 
-ggsave(file.path(CONFIG$figures_dir, "01_00_wheel_turning_oct.png"), width = 10, height = 10, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "03_01_wheel_turning_oct.png"), width = 10, height = 10, units = "in")
 
 ggplot(unique(all_pairs[floor_date(analysis_workdate, unit = "month") == as.Date('2015-07-01'), c("analysis_workdate", "disp_med")]),
        aes(x = analysis_workdate, y = disp_med)) +
@@ -142,7 +142,7 @@ ggplot(unique(all_pairs[floor_date(analysis_workdate, unit = "month") == as.Date
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15))
 
-ggsave(file.path(CONFIG$figures_dir, "01_00_wheel_turning_july.png"), width = 10, height = 10, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "03_01_wheel_turning_july.png"), width = 10, height = 10, units = "in")
 
 #' ---------------------------------------------------------------------------
 #' WHEEL POSITION AND OVERTIME
@@ -159,7 +159,7 @@ ggplot(all_pairs, aes(x = 1 - dist_from_med, y = as.numeric(ot_work))) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15))
 
-ggsave(file.path(CONFIG$figures_dir, "01_00_wheel_predicts_ot.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "03_01_wheel_predicts_ot.png"), width = 12, height = 8, units = "in")
 
 #' ---------------------------------------------------------------------------
 #' OVERTIME DISPERSION
@@ -174,7 +174,7 @@ ggplot(ot_emp_level, aes(x = ot_frac)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15))
 
-ggsave(file.path(CONFIG$figures_dir, "01_00_ot_dipersion_frac.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "03_01_ot_dipersion_frac.png"), width = 12, height = 8, units = "in")
 
 ## among those who work 1, p25 is 0.023766  , p75 is 0.250457, 10.5 times.
 summary(ot_emp_level[ot_tot > 1, ]$ot_frac)
@@ -193,7 +193,7 @@ ggplot(ot_emp_level, aes(x = ot_tot)) +
   theme_bw() +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15))
-ggsave(file.path(CONFIG$figures_dir, "01_00_ot_dipersion_count.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "03_01_ot_dipersion_count.png"), width = 12, height = 8, units = "in")
 
 ## among those who work 1, p25 is 12.00  , p75 is 134.00, 11.2 times.
 summary(ot_emp_level[ot_tot > 1, ]$ot_tot)
@@ -216,7 +216,7 @@ ggplot(all_pairs[class_type != "Ambigious"], aes(x = l_degree, fill = as.factor(
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
-ggsave(file.path(CONFIG$figures_dir, "01_00_buyers_sellers_connectedness.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "03_01_buyers_sellers_connectedness.png"), width = 12, height = 8, units = "in")
 
 #' ---------------------------------------------------------------------------
 #' NETWORK VISUALIZATION (BUYERS/SELLERS)
@@ -250,7 +250,7 @@ nodecolor <- nodecolor[all_pairs_net[analysis_workdate == start_date]$class_type
 names(nodecolor) <- as.character(snapshot$num_emp1)
 
 lay_try <- layout_with_graphopt(igraph_mat, mass = 40, charge = 0.02, spring.length = 1, spring = 1)
-png(file.path(CONFIG$figures_dir, "01_00_zoomed_out_network.png"), width = 1000, height = 1000, units = "px")
+png(file.path(CONFIG$figures_dir, "03_01_zoomed_out_network.png"), width = 1000, height = 1000, units = "px")
 plot(igraph_mat, layout = lay_try, vertex.size = 3, vertex.label = NA,
      vertex.color = nodecolor, edge.width = 0.2)
 dev.off()
@@ -267,7 +267,7 @@ names(nodecolor) <- as.character(snapshot$num_emp1)
 edgecolor <- c("lightgrey", "black")
 edgecolor <- edgecolor[1 + (E(zoom_in)$weight >= 7)]
 
-png(file.path(CONFIG$figures_dir, "01_00_zoomed_in_network.png"), width = 500, height = 500, units = "px")
+png(file.path(CONFIG$figures_dir, "03_01_zoomed_in_network.png"), width = 500, height = 500, units = "px")
 plot(zoom_in, layout = layout_in_circle(zoom_in), vertex.size = 15, vertex.label = NA, edge.width = 1, edge.color = edgecolor,
      vertex.color = nodecolor[names(V(zoom_in))])
 dev.off()
@@ -301,7 +301,7 @@ nodecolor <- nodecolor[paste0(floor(ecdf(cent_size)(cent_size) / 0.1) * 10, "%")
 names(nodecolor) <- as.character(snapshot$num_emp1)
 
 lay_try <- layout_with_graphopt(igraph_mat, mass = 15, charge = 0.02, spring.length = 1, spring = 1)
-png(file.path(CONFIG$figures_dir, "01_00_zoomed_out_network_centrality.png"), width = 1000, height = 1000, units = "px")
+png(file.path(CONFIG$figures_dir, "03_01_zoomed_out_network_centrality.png"), width = 1000, height = 1000, units = "px")
 plot(igraph_mat, layout = lay_try, vertex.size = 3, vertex.label = NA,
      vertex.color = nodecolor[as.character(snapshot$num_emp1)], edge.width = 0.2)
 dev.off()
@@ -313,7 +313,7 @@ zoom_in <- induced_subgraph(igraph_mat, with(components(igraph_mat), membership 
 edgecolor <- c("lightgrey", "black")
 edgecolor <- edgecolor[1 + (E(zoom_in)$weight >= 5)]
 
-png(file.path(CONFIG$figures_dir, "01_00_zoomed_in_network_centrality.png"), width = 500, height = 500, units = "px")
+png(file.path(CONFIG$figures_dir, "03_01_zoomed_in_network_centrality.png"), width = 500, height = 500, units = "px")
 plot(zoom_in, layout = layout_in_circle(zoom_in), vertex.size = 15, vertex.label = NA, edge.width = 1, edge.color = edgecolor,
      vertex.color = nodecolor[names(V(zoom_in))])
 dev.off()
@@ -324,7 +324,7 @@ zoom_in <- induced_subgraph(igraph_mat, with(components(igraph_mat), membership 
 edgecolor <- c("lightgrey", "black")
 edgecolor <- edgecolor[1 + (E(zoom_in)$weight >= 3.5)]
 
-png(file.path(CONFIG$figures_dir, "01_00_zoomed_in_network_centrality_18.png"), width = 500, height = 500, units = "px")
+png(file.path(CONFIG$figures_dir, "03_01_zoomed_in_network_centrality_18.png"), width = 500, height = 500, units = "px")
 plot(zoom_in, layout = layout_in_circle(zoom_in), vertex.size = 15, vertex.label = NA, edge.width = 1, edge.color = edgecolor,
      vertex.color = nodecolor[names(V(zoom_in))])
 dev.off()
@@ -338,7 +338,7 @@ v_sel <- 230
 var_one <- induced_subgraph(igraph_mat, c(which(names(V(igraph_mat)) == paste0(v_sel)), neighbors(igraph_mat, which(names(V(igraph_mat)) == paste0(v_sel)))))
 var_one <- delete.edges(var_one, E(var_one)[-incident(var_one, which(names(V(var_one)) == paste0(v_sel)))])
 
-png(file.path(CONFIG$figures_dir, "01_00_timevarying_230_20150101.png"), width = 800, height = 800, units = "px")
+png(file.path(CONFIG$figures_dir, "03_01_timevarying_230_20150101.png"), width = 800, height = 800, units = "px")
 plot(var_one, vertex.label.cex = 3, vertex.color = ifelse(names(V(var_one)) == paste0(v_sel), nodecolor[names(V(var_one))], "white"),
      layout = layout_as_star(var_one, center = which(names(V(var_one)) == paste0(v_sel))),
      vertex.size = 25, edge.width = 3.2 * (E(var_one)$weight - min(E(var_one)$weight)) + 0.1)
@@ -362,7 +362,7 @@ igraph_mat <- graph_from_adjacency_matrix(qgraph_mat, mode = "undirected", weigh
 var_one <- induced_subgraph(igraph_mat, c(which(names(V(igraph_mat)) == paste0(v_sel)), neighbors(igraph_mat, which(names(V(igraph_mat)) == paste0(v_sel)))))
 var_one <- delete.edges(var_one, E(var_one)[-incident(var_one, which(names(V(var_one)) == paste0(v_sel)))])
 
-png(file.path(CONFIG$figures_dir, "01_00_timevarying_230_20150701.png"), width = 800, height = 800, units = "px")
+png(file.path(CONFIG$figures_dir, "03_01_timevarying_230_20150701.png"), width = 800, height = 800, units = "px")
 plot(var_one, vertex.label.cex = 2, vertex.color = ifelse(names(V(var_one)) == paste0(v_sel), nodecolor[names(V(var_one))], "white"),
      layout = layout_as_star(var_one, center = which(names(V(var_one)) == paste0(v_sel))),
      vertex.size = 25, edge.width = 3.2 * (E(var_one)$weight - min(E(var_one)$weight)) + 0.1)
@@ -386,7 +386,7 @@ igraph_mat <- graph_from_adjacency_matrix(qgraph_mat, mode = "undirected", weigh
 var_one <- induced_subgraph(igraph_mat, c(which(names(V(igraph_mat)) == paste0(v_sel)), neighbors(igraph_mat, which(names(V(igraph_mat)) == paste0(v_sel)))))
 var_one <- delete.edges(var_one, E(var_one)[-incident(var_one, which(names(V(var_one)) == paste0(v_sel)))])
 
-png(file.path(CONFIG$figures_dir, "01_00_timevarying_230_20160101.png"), width = 800, height = 800, units = "px")
+png(file.path(CONFIG$figures_dir, "03_01_timevarying_230_20160101.png"), width = 800, height = 800, units = "px")
 plot(var_one, vertex.label.cex = 3, vertex.color = ifelse(names(V(var_one)) == paste0(v_sel), nodecolor[names(V(var_one))], "white"),
      layout = layout_as_star(var_one, center = which(names(V(var_one)) == paste0(v_sel))),
      vertex.size = 25, edge.width = 3.2 * (E(var_one)$weight - min(E(var_one)$weight)) + 0.1)
@@ -409,7 +409,7 @@ ggplot(all_pairs, aes(x = l_wheel_degree)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15))
 
-ggsave(file.path(CONFIG$figures_dir, "01_00_potential_supplier_hist.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "03_01_potential_supplier_hist.png"), width = 12, height = 8, units = "in")
 
 all_pairs[, bar_degree := mean(l_wheel_degree), by = "num_emp1"]
 ggplot(all_pairs, aes(x = l_wheel_degree - bar_degree)) +
@@ -418,7 +418,7 @@ ggplot(all_pairs, aes(x = l_wheel_degree - bar_degree)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15))
 
-ggsave(file.path(CONFIG$figures_dir, "01_00_potential_supplier_hist_idiosyncratic.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "03_01_potential_supplier_hist_idiosyncratic.png"), width = 12, height = 8, units = "in")
 
 #' ---------------------------------------------------------------------------
 #' SUPPLIER COUNT AND OVERTIME
@@ -443,7 +443,7 @@ ggplot(all_pairs[!is.na(l_wheel_degree)], aes(x = l_wheel_degree, y = as.numeric
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15))
 
-ggsave(file.path(CONFIG$figures_dir, "01_00_potential_supplier_count.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "03_01_potential_supplier_count.png"), width = 12, height = 8, units = "in")
 
 #' ---------------------------------------------------------------------------
 #' RESIDUALIZED RELEVANCE PLOT
@@ -470,7 +470,7 @@ ggplot(data = all_pairs[!is.na(l_wheel_degree)][resid_instrument <= quantile(res
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15))
 
-ggsave(file.path(CONFIG$figures_dir, "01_00_relevance_resid.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "03_01_relevance_resid.png"), width = 12, height = 8, units = "in")
 
 log_message("03_01_facts.R completed successfully")
 log_complete(success = TRUE)

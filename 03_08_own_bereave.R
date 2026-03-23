@@ -2,7 +2,7 @@
 #' BEREAVEMENT EVENT STUDY - OWN CONNECTEDNESS
 #' =============================================================================
 #' Input:  data/02_01_estimation_sample.rds
-#' Output: out/figures/01_06b_own_bereave_twfe.png
+#' Output: out/figures/03_08_own_bereave_twfe.png
 #' =============================================================================
 
 source('config.R')
@@ -57,7 +57,7 @@ summary(twfe)
 twfe <- feols(wheel_degree ~ i(rel_time, ref = -c(0, Inf)) | num_emp1 + analysis_workdate, data = all_pairs)
 
 ensure_directory(CONFIG$figures_dir)
-png(file.path(CONFIG$figures_dir, "01_06b_own_bereave_twfe.png"), width = 900, height = 500)
+png(file.path(CONFIG$figures_dir, "03_08_own_bereave_twfe.png"), width = 900, height = 500)
 iplot(twfe, main = "", xlab = "Time to Bereavement (Days)", ylab = "Potential Supplier Count",
       drop = "([3-9]\\d{1}|\\d{3})", lab.fit = "simple")
 dev.off()
