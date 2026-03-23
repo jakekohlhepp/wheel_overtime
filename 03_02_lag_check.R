@@ -1,14 +1,14 @@
 #' =============================================================================
 #' LAG CHECK REGRESSIONS
 #' =============================================================================
-#' Input:  data/00_01_estimation_sample.rds
+#' Input:  data/02_01_estimation_sample.rds
 #' Output: out/tables/01_01_lag_regs_suppliers.tex
 #'         out/tables/01_01_lag_regs.tex
 #' =============================================================================
 
 source('config.R')
 source('utils/logging.R')
-log_init("01_01_lag_check.R")
+log_init("03_02_lag_check.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD PACKAGES
@@ -23,7 +23,7 @@ set.seed(633491)
 #' ---------------------------------------------------------------------------
 
 log_message("Loading estimation sample")
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 
 #' ---------------------------------------------------------------------------
 #' LAGGED SUPPLIER REGRESSIONS
@@ -94,5 +94,5 @@ etable(res1, res2, res3, res4, res5, fitstat = ~r2, keep = "!Constant", order = 
        file = file.path(CONFIG$tables_dir, "01_01_lag_regs.tex"), replace = TRUE,
        signifCode = c(`***` = 0.001, `**` = 0.01, `*` = 0.05))
 
-log_message("01_01_lag_check.R completed successfully")
+log_message("03_02_lag_check.R completed successfully")
 log_complete(success = TRUE)

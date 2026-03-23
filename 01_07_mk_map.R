@@ -6,7 +6,7 @@
 #' Input:  20170803_payworkers_comp/anonymized_data_073117.txt (division codes)
 #'         20250320_division_names_offices/list_complete.csv (division names + office locations)
 #'         20250311_ladot_enforcement_districts/ (shapefiles)
-#' Output: out/figures/prep_02_la_street_map.png
+#' Output: out/figures/01_07_la_street_map.png
 #' =============================================================================
 
 library('data.table')
@@ -18,7 +18,7 @@ library('tidygeocoder')
 source('config.R')
 source('utils/logging.R')
 
-log_init("prep_02_mk_map.R")
+log_init("01_07_mk_map.R")
 log_message("Building LA enforcement districts map")
 
 #' -----------------------------------------------------------------------------
@@ -35,7 +35,7 @@ working <- fread(raw_path)
 working <- unique(working[!is.na(`Div Cd`), c("Div Cd", "Assigned Div")])
 setkey(working, `Div Cd`)
 
-write.csv(working, file.path(CONFIG$data_dir, "prep_02_list_tofill.csv"))
+write.csv(working, file.path(CONFIG$data_dir, "01_07_list_tofill.csv"))
 
 #' -----------------------------------------------------------------------------
 #' LOAD SHAPEFILES AND OFFICE LOCATIONS
@@ -116,4 +116,4 @@ ggsave(CONFIG$map_output, plot = street_plot,
 
 log_message(paste("Map saved:", CONFIG$map_output))
 log_complete(success = TRUE)
-message("prep_02_mk_map complete")
+message("01_07_mk_map complete")

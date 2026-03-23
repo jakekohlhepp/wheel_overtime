@@ -4,7 +4,7 @@ library('haven')
 source('config.R')
 source('utils/logging.R')
 
-log_init('01_01_mk_working.R')
+log_init('01_03_mk_working.R')
 
 raw_path <- file.path(CONFIG$raw_pay_dir, 'data', 'anonymized_data_073117.dta')
 info_path <- file.path(CONFIG$output_dir, 'list_var_desc.csv')

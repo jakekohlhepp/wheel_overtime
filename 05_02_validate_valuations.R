@@ -1,11 +1,11 @@
 #' =============================================================================
 #' VALIDATE VALUATIONS
 #' =============================================================================
-#' Input:  data/02_00_estimate.Rdata
-#'         data/00_01_estimation_sample.rds
+#' Input:  data/04_01_estimate.Rdata
+#'         data/02_01_estimation_sample.rds
 #'         20250207_bss_special_events/Building_and_Safety_...csv
-#'         data/02_02_val_special_events_filled.csv
-#' Output: data/02_02_val_special_events_blank.csv
+#'         data/05_02_val_special_events_filled.csv
+#' Output: data/05_02_val_special_events_blank.csv
 #'         out/tables/02_02_top10_fixed_effects.tex
 #'         out/tables/02_02_rain_dow_fe.tex
 #' =============================================================================
@@ -20,15 +20,15 @@ library('fixest')
 source('config.R')
 source('utils/logging.R')
 
-log_init("02_02_validate_valuations.R")
+log_init("05_02_validate_valuations.R")
 log_message("Starting valuation validation")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA AND COMPUTE DATE FIXED EFFECTS
 #' ---------------------------------------------------------------------------
 
-load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
+load(file.path(CONFIG$data_dir, "04_01_estimate.Rdata"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 ## compute average ot hours.
 avg_othours <- mean(all_pairs[ot_work == 1]$varot_hours)
 
@@ -60,7 +60,7 @@ special <- merge(special, date_fe, by = "analysis_workdate", all.x = TRUE)
 setorder(special, -"r_date_fe")
 
 ensure_directory(CONFIG$data_dir)
-write.csv(special[!is.na(r_date_fe), c("r_date_fe", "analysis_workdate", "event_list")], file = file.path(CONFIG$data_dir, "02_02_val_special_events_blank.csv"))
+write.csv(special[!is.na(r_date_fe), c("r_date_fe", "analysis_workdate", "event_list")], file = file.path(CONFIG$data_dir, "05_02_val_special_events_blank.csv"))
 log_message("Wrote blank special events CSV for manual fill-in")
 
 #' ---------------------------------------------------------------------------
@@ -69,7 +69,7 @@ log_message("Wrote blank special events CSV for manual fill-in")
 
 log_message("Building top 10 fixed effects table")
 
-withnames <- fread(file.path(CONFIG$data_dir, "02_02_val_special_events_filled.csv"))
+withnames <- fread(file.path(CONFIG$data_dir, "05_02_val_special_events_filled.csv"))
 withnames[, analysis_workdate := mdy(analysis_workdate)]
 setorder(withnames, -"r_date_fe")
 withnames <- merge(withnames[, -"r_date_fe"], special[!is.na(r_date_fe)][1:10, c("analysis_workdate", "tot_ot", "r_date_fe")], by = "analysis_workdate", all.y = TRUE)

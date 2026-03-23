@@ -4,8 +4,8 @@
 #' Analyzes labor supply elasticity by computing dollar-equivalent valuations
 #' and examining family leave and age heterogeneity.
 #'
-#' Input:  data/02_00_estimate.Rdata        (logit model)
-#'         data/00_01_estimation_sample.rds  (estimation sample)
+#' Input:  data/04_01_estimate.Rdata        (logit model)
+#'         data/02_01_estimation_sample.rds  (estimation sample)
 #' Output: (analysis only, no saved files)
 #' =============================================================================
 
@@ -16,7 +16,7 @@ library('lubridate')
 source('config.R')
 source('utils/logging.R')
 
-log_init("02_05_labor_supply.R")
+log_init("05_05_labor_supply.R")
 log_message("Running labor supply analysis")
 
 set.seed(660062)
@@ -25,9 +25,9 @@ set.seed(660062)
 #' LOAD DATA AND MODEL
 #' -----------------------------------------------------------------------------
 
-load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
+load(file.path(CONFIG$data_dir, "04_01_estimate.Rdata"))
 
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 
 #' -----------------------------------------------------------------------------
 #' COMPUTE VALUATIONS
@@ -73,4 +73,4 @@ by_emp <- all_pairs[, .(observed_ot_count = sum(ot_work), valuation = mean(det_v
 
 log_message(paste("Officer summary:", nrow(by_emp), "officers"))
 log_complete(success = TRUE)
-message("02_05_labor_supply complete")
+message("05_05_labor_supply complete")

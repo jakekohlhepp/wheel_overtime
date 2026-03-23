@@ -72,44 +72,44 @@ run_step <- function(step_name, script, deps, outputs = NULL,
 }
 
 #' -----------------------------------------------------------------------------
-#' TIER 0: Build estimation sample
+#' TIER 2: Build estimation sample
 #' -----------------------------------------------------------------------------
 
-est_sample_path <- file.path(CONFIG$data_dir, "00_01_estimation_sample.rds")
+est_sample_path <- file.path(CONFIG$data_dir, "02_01_estimation_sample.rds")
 
 if (RUN_EST_SAMPLE) {
-  run_step("00_01_mk_estimation_sample",
-           "00_01_mk_estimation_sample.R",
-           deps = c("config.R", "00_01_mk_estimation_sample.R",
+  run_step("02_01_mk_estimation_sample",
+           "02_01_mk_estimation_sample.R",
+           deps = c("config.R", "02_01_mk_estimation_sample.R",
                     get_network_output_path(CONFIG$network_window_default),
                     file.path(CONFIG$raw_pay_dir, "anonymized_data_073117.txt")),
            outputs = est_sample_path)
 }
 
 #' -----------------------------------------------------------------------------
-#' TIER 1: Descriptive facts and event studies
+#' TIER 3: Descriptive facts and event studies
 #' -----------------------------------------------------------------------------
 
 if (RUN_FACTS) {
-  run_step("01_00_facts",
-           "01_00_facts.R",
-           deps = c("config.R", "01_00_facts.R", est_sample_path))
+  run_step("03_01_facts",
+           "03_01_facts.R",
+           deps = c("config.R", "03_01_facts.R", est_sample_path))
 }
 
 if (RUN_FACTS) {
-  run_step("01_01_lag_check",
-           "01_01_lag_check.R",
-           deps = c("config.R", "01_01_lag_check.R", est_sample_path))
+  run_step("03_02_lag_check",
+           "03_02_lag_check.R",
+           deps = c("config.R", "03_02_lag_check.R", est_sample_path))
 }
 
 if (RUN_EVENT_STUDIES) {
   event_scripts <- c(
-    "01_03_termination_did",
-    "01_04_new_hire",
-    "01_05_fmla",
-    "01_05b_own_fmla",
-    "01_06_bereave",
-    "01_06b_own_bereave"
+    "03_03_termination_did",
+    "03_04_new_hire",
+    "03_05_fmla",
+    "03_06_own_fmla",
+    "03_07_bereave",
+    "03_08_own_bereave"
   )
 
   for (script_name in event_scripts) {
@@ -120,36 +120,36 @@ if (RUN_EVENT_STUDIES) {
 }
 
 #' -----------------------------------------------------------------------------
-#' TIER 2: Main estimation
+#' TIER 4: Main estimation
 #' -----------------------------------------------------------------------------
 
-estimate_path <- file.path(CONFIG$data_dir, "02_00_estimate.Rdata")
-estimate_probit_path <- file.path(CONFIG$data_dir, "02_00_estimate_probit.Rdata")
+estimate_path <- file.path(CONFIG$data_dir, "04_01_estimate.Rdata")
+estimate_probit_path <- file.path(CONFIG$data_dir, "04_01_estimate_probit.Rdata")
 
 if (RUN_ESTIMATION) {
-  run_step("02_00_estimate",
-           "02_00_estimate.R",
-           deps = c("config.R", "02_00_estimate.R", est_sample_path),
+  run_step("04_01_estimate",
+           "04_01_estimate.R",
+           deps = c("config.R", "04_01_estimate.R", est_sample_path),
            outputs = c(estimate_path, estimate_probit_path))
 }
 
 if (RUN_ESTIMATION) {
-  run_step("02_00b_estimate_many",
-           "02_00b_estimate_many.R",
-           deps = c("config.R", "02_00b_estimate_many.R", est_sample_path))
+  run_step("04_02_estimate_many",
+           "04_02_estimate_many.R",
+           deps = c("config.R", "04_02_estimate_many.R", est_sample_path))
 }
 
 #' -----------------------------------------------------------------------------
-#' TIER 3: Estimation analysis
+#' TIER 5: Estimation analysis
 #' -----------------------------------------------------------------------------
 
 if (RUN_EST_ANALYSIS) {
   est_analysis_scripts <- c(
-    "02_01_display",
-    "02_02_validate_valuations",
-    "02_03_cartel_age",
-    "02_04_decomp_pref_network",
-    "02_05_labor_supply"
+    "05_01_display",
+    "05_02_validate_valuations",
+    "05_03_cartel_age",
+    "05_04_decomp_pref_network",
+    "05_05_labor_supply"
   )
 
   for (script_name in est_analysis_scripts) {
@@ -160,23 +160,21 @@ if (RUN_EST_ANALYSIS) {
 }
 
 #' -----------------------------------------------------------------------------
-#' TIER 4: Counterfactual simulations
+#' TIER 6: Counterfactual simulations
 #' -----------------------------------------------------------------------------
 
-sim_outputs <- list()
-
 if (RUN_SIMULATIONS) {
-  run_step("03_00_sim_frontier",
-           "03_00_sim_frontier.R",
-           deps = c("config.R", "03_00_sim_frontier.R", est_sample_path, estimate_path),
-           outputs = file.path(CONFIG$data_dir, "03_00_sim_frontier.rds"))
+  run_step("06_01_sim_frontier",
+           "06_01_sim_frontier.R",
+           deps = c("config.R", "06_01_sim_frontier.R", est_sample_path, estimate_path),
+           outputs = file.path(CONFIG$data_dir, "06_01_sim_frontier.rds"))
 
   sim_scripts <- c(
-    "03_01_sim_random",
-    "03_02_auction_sim",
-    "03_03_sim_informal",
-    "03_04_sim_informal_reverse",
-    "03_05_sim_informal_perfect"
+    "06_02_sim_random",
+    "06_03_auction_sim",
+    "06_04_sim_informal",
+    "06_05_sim_informal_reverse",
+    "06_06_sim_informal_perfect"
   )
 
   for (script_name in sim_scripts) {
@@ -187,17 +185,17 @@ if (RUN_SIMULATIONS) {
 }
 
 #' -----------------------------------------------------------------------------
-#' TIER 5: Simulation comparison
+#' TIER 7: Simulation comparison
 #' -----------------------------------------------------------------------------
 
 if (RUN_SIM_COMPARE) {
-  run_step("03_98_heatmap",
-           "03_98_heatmap.R",
-           deps = c("config.R", "03_98_heatmap.R", est_sample_path, estimate_path))
+  run_step("07_01_heatmap",
+           "07_01_heatmap.R",
+           deps = c("config.R", "07_01_heatmap.R", est_sample_path, estimate_path))
 
-  run_step("03_99_compare_sims",
-           "03_99_compare_sims.R",
-           deps = c("config.R", "03_99_compare_sims.R", est_sample_path, estimate_path))
+  run_step("07_02_compare_sims",
+           "07_02_compare_sims.R",
+           deps = c("config.R", "07_02_compare_sims.R", est_sample_path, estimate_path))
 }
 
 #' -----------------------------------------------------------------------------

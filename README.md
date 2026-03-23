@@ -12,13 +12,11 @@ Paper: [wheel_overtime_draft.pdf](https://www.jkohlhepp.com/pdf/wheel_overtime_d
 # 1. Open the RStudio project
 #    File > Open Project > productivity.Rproj
 
-# 2. Run data preparation (network panels + map)
+# 2. Run data preparation (raw processing + network panels + map)
 source("run_prep_data.R")
 
-# 3. Run analysis pipeline in order (see Pipeline below)
-source("00_01_mk_estimation_sample.R")
-source("02_00_estimate.R")
-# ... etc.
+# 3. Run full analysis pipeline
+source("run_analysis.R")
 ```
 
 ## Project Structure
@@ -28,49 +26,51 @@ wheel_code/
 ├── config.R                          # Centralized configuration (paths, parameters)
 ├── utils/logging.R                   # Logging and conditional re-run logic
 │
-├── process_holidays.R                # Pre-Stata: holidays CSV -> .dta
-├── process_weather.R                 # Pre-Stata: weather CSV -> .dta
-├── 01_01_mk_working.R               # R port of Stata 01_01 (working panel)
-├── 01_02_mk_expanded_pay.R          # R port of Stata 01_02 (expanded pay)
-├── 01_03_mk_pre_network.R           # R port of Stata 01_03 (pre-network panel)
+├── run_prep_data.R                   # Orchestrator: data preparation (01_01 -- 01_07)
+├── 01_01_process_weather.R           # Weather CSV → .dta
+├── 01_02_process_holidays.R          # Holidays CSV → .dta
+├── 01_03_mk_working.R               # Split raw data into employee/workers_comp/pay
+├── 01_04_mk_expanded_pay.R           # Expand pay to daily panel + merge weather/holidays
+├── 01_05_mk_pre_network.R            # Build exposure matrices (30/90/180/1000-day windows)
+├── 01_06_mk_network.R                # Network panels (30/90/180-day windows)
+├── 01_07_mk_map.R                    # Enforcement districts map
 │
-├── run_prep_data.R                   # Orchestrator: prep_01 + prep_02
-├── prep_01_mk_network.R             # Network panels (30/90/180-day windows)
-├── prep_02_mk_map.R                 # Enforcement districts map
+├── run_analysis.R                    # Orchestrator: analysis pipeline (02_01 -- 07_02)
+├── 02_01_mk_estimation_sample.R      # Build main estimation sample
+├── 03_01_facts.R                     # Descriptive facts and figures
+├── 03_02_lag_check.R                 # Lag structure validation
+├── 03_03_termination_did.R           # Event study: terminations
+├── 03_04_new_hire.R                  # Event study: new hires
+├── 03_05_fmla.R                      # Event study: peer FMLA leave
+├── 03_06_own_fmla.R                  # Event study: own FMLA leave
+├── 03_07_bereave.R                   # Event study: peer bereavement
+├── 03_08_own_bereave.R               # Event study: own bereavement
 │
-├── 00_01_mk_estimation_sample.R     # Build main estimation sample
-├── 01_00_facts.R                    # Descriptive facts and figures
-├── 01_01_lag_check.R                # Lag structure validation
-├── 01_03_termination_did.R          # Event study: terminations
-├── 01_04_new_hire.R                 # Event study: new hires
-├── 01_05_fmla.R                     # Event study: peer FMLA leave
-├── 01_05b_own_fmla.R               # Event study: own FMLA leave
-├── 01_06_bereave.R                  # Event study: peer bereavement
-├── 01_06b_own_bereave.R            # Event study: own bereavement
+├── 04_01_estimate.R                  # Main logit/probit estimation
+├── 04_02_estimate_many.R             # Time-varying estimates
+├── 05_01_display.R                   # Estimation result figures
+├── 05_02_validate_valuations.R       # Validate against special events
+├── 05_03_cartel_age.R                # Heterogeneity by age/tenure
+├── 05_04_decomp_pref_network.R       # Preference vs. network decomposition
+├── 05_05_labor_supply.R              # Labor supply analysis
 │
-├── 02_00_estimate.R                 # Main logit/probit estimation
-├── 02_00b_estimate_many.R           # Time-varying estimates
-├── 02_01_display.R                  # Estimation result figures
-├── 02_02_validate_valuations.R      # Validate against special events
-├── 02_03_cartel_age.R               # Heterogeneity by age/tenure
-├── 02_04_decomp_pref_network.R      # Preference vs. network decomposition
-├── 02_05_labor_supply.R             # Labor supply analysis
+├── 06_01_sim_frontier.R              # Simulation: efficiency-equity frontier
+├── 06_02_sim_random.R                # Simulation: random allocation
+├── 06_03_auction_sim.R               # Simulation: auction mechanisms
+├── 06_04_sim_informal.R              # Simulation: informal trading
+├── 06_05_sim_informal_reverse.R      # Simulation: reverse-seniority trading
+├── 06_06_sim_informal_perfect.R      # Simulation: perfect-information trading
+├── 07_01_heatmap.R                   # Simulation heatmap visualization
+├── 07_02_compare_sims.R              # Cross-simulation comparison
 │
-├── 03_00_sim_frontier.R              # Simulation: efficiency-equity frontier
-├── 03_01_sim_random.R               # Simulation: random allocation
-├── 03_02_auction_sim.R              # Simulation: auction mechanisms
-├── 03_03_sim_informal.R             # Simulation: informal trading
-├── 03_04_sim_informal_reverse.R     # Simulation: reverse-seniority trading
-├── 03_05_sim_informal_perfect.R     # Simulation: perfect-information trading
-├── 03_98_heatmap.R                  # Simulation heatmap visualization
-├── 03_99_compare_sims.R             # Cross-simulation comparison
-│
-├── data/                            # Intermediate data files (gitignored)
-├── out/figures/                     # Output figures (gitignored)
-├── logs/                            # Execution logs (gitignored)
-├── 20170803_payworkers_comp/        # Raw pay/workers comp data (gitignored)
-├── 20190811_weather/                # Raw weather data (gitignored)
-├── 20190814_fed_holidays/           # Raw holiday data (gitignored)
+├── legacy/stata/                     # Original Stata scripts and verification tools
+├── data/                             # Intermediate data files (gitignored)
+├── out/figures/                      # Output figures (gitignored)
+├── out/tables/                       # Output tables (gitignored)
+├── logs/                             # Execution logs (gitignored)
+├── 20170803_payworkers_comp/         # Raw pay/workers comp data (gitignored)
+├── 20190811_weather/                 # Raw weather data (gitignored)
+├── 20190814_fed_holidays/            # Raw holiday data (gitignored)
 └── 20250311_ladot_enforcement_districts/  # District shapefiles (gitignored)
 ```
 
@@ -84,18 +84,26 @@ Run via `source("run_prep_data.R")`. Steps are skipped automatically when inputs
 
 | Step | Script | Output |
 |------|--------|--------|
-| prep_01 | `prep_01_mk_network.R` | `data/prep_01_panel_working{_30,_180}.rds` |
-| prep_02 | `prep_02_mk_map.R` | `out/figures/prep_02_la_street_map.png` |
+| 01_01 | `01_01_process_weather.R` | `data/weather_daily.dta` |
+| 01_02 | `01_02_process_holidays.R` | `data/holidays.dta` |
+| 01_03 | `01_03_mk_working.R` | `data/employee_data.dta`, `data/pay_data.dta`, `data/workers_comp.dta` |
+| 01_04 | `01_04_mk_expanded_pay.R` | `data/working_expanded.dta` |
+| 01_05 | `01_05_mk_pre_network.R` | `data/01_05_pre_network_{30,90,180,1000}.csv` |
+| 01_06 | `01_06_mk_network.R` | `data/01_06_panel_working{_30,_180}.rds` |
+| 01_07 | `01_07_mk_map.R` | `out/figures/01_07_la_street_map.png` |
 
 ### Analysis
 
+Run via `source("run_analysis.R")`.
+
 | Tier | Scripts | Depends On |
 |------|---------|------------|
-| 0 | `00_01_mk_estimation_sample.R` | prep_01 output |
-| 1 | `01_00_facts.R`, `01_01` -- `01_06b` (event studies) | Tier 0 |
-| 2 | `02_00_estimate.R` (main estimation) | Tier 0 |
-| 3 | `02_01` -- `02_05` (estimation analysis), `03_00` -- `03_05` (simulations) | Tier 2 |
-| 4 | `03_98_heatmap.R`, `03_99_compare_sims.R` | Tier 3 |
+| 2 | `02_01_mk_estimation_sample.R` | 01_06 output |
+| 3 | `03_01_facts.R`, `03_02` -- `03_08` (event studies) | Tier 2 |
+| 4 | `04_01_estimate.R` (main estimation) | Tier 2 |
+| 5 | `05_01` -- `05_05` (estimation analysis) | Tier 4 |
+| 6 | `06_01` -- `06_06` (simulations) | Tier 4 |
+| 7 | `07_01_heatmap.R`, `07_02_compare_sims.R` | Tier 6 |
 
 ## Configuration
 
@@ -127,13 +135,13 @@ Set `CONFIG$force_rerun <- TRUE` to override and re-run everything.
 
 ## Data
 
-Raw data directories are date-stamped (`YYYYMMDD_description/`) and gitignored. Stata scripts (01_01 through 01_03) produce intermediate CSVs in `data/` that the R pipeline takes as given. Key intermediate files:
+Raw data directories are date-stamped (`YYYYMMDD_description/`) and gitignored. Key intermediate files:
 
 | File | Source |
 |------|--------|
-| `data/01_03_pre_network_{30,90,180}.csv` | Stata 01_03 (or R port) |
-| `data/prep_01_panel_working.rds` | `prep_01_mk_network.R` |
-| `data/00_01_estimation_sample.rds` | `00_01_mk_estimation_sample.R` |
+| `data/01_05_pre_network_{30,90,180}.csv` | `01_05_mk_pre_network.R` |
+| `data/01_06_panel_working.rds` | `01_06_mk_network.R` |
+| `data/02_01_estimation_sample.rds` | `02_01_mk_estimation_sample.R` |
 
 ## Requirements
 

@@ -5,8 +5,8 @@
 #' degree centrality, and expected earnings. Parameterized by rolling window
 #' size so one script produces all variants (30, 90, 180 day).
 #'
-#' Input:  data/01_03_pre_network_{window}.csv (from Stata 01_03)
-#' Output: data/prep_01_panel_working{_window}.rds
+#' Input:  data/01_05_pre_network_{window}.csv (from 01_05)
+#' Output: data/01_06_panel_working{_window}.rds
 #'
 #' Output Schema:
 #'   num_emp1:                officer id (integer)
@@ -27,7 +27,7 @@
 #' Usage:
 #'   source('config.R')
 #'   NETWORK_WINDOW <- 90   # set before sourcing, or defaults to CONFIG value
-#'   source('prep_01_mk_network.R')
+#'   source('01_06_mk_network.R')
 #' =============================================================================
 
 library('data.table')
@@ -46,7 +46,7 @@ if (!exists("NETWORK_WINDOW")) {
 input_path <- get_network_input_path(NETWORK_WINDOW)
 output_path <- get_network_output_path(NETWORK_WINDOW)
 
-log_init(paste0("prep_01_mk_network_", NETWORK_WINDOW, ".R"))
+log_init(paste0("01_06_mk_network_", NETWORK_WINDOW, ".R"))
 log_message(paste("Building network panel for", NETWORK_WINDOW, "day window"))
 log_message(paste("Input:", input_path))
 log_message(paste("Output:", output_path))
@@ -307,4 +307,4 @@ saveRDS(all_pairs, output_path)
 log_message(paste("Saved:", output_path))
 log_complete(success = TRUE)
 
-message("prep_01_mk_network complete for window = ", NETWORK_WINDOW)
+message("01_06_mk_network complete for window = ", NETWORK_WINDOW)

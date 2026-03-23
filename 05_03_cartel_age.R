@@ -1,8 +1,8 @@
 #' =============================================================================
 #' CARTEL AND AGE ANALYSIS
 #' =============================================================================
-#' Input:  data/00_01_estimation_sample.rds
-#'         data/02_00_estimate.Rdata
+#' Input:  data/02_01_estimation_sample.rds
+#'         data/04_01_estimate.Rdata
 #' Output: out/tables/02_03_cartel.tex
 #'         out/figures/02_03_age_valuation.png
 #' =============================================================================
@@ -17,15 +17,15 @@ library('kableExtra')
 source('config.R')
 source('utils/logging.R')
 
-log_init("02_03_cartel_age.R")
+log_init("05_03_cartel_age.R")
 log_message("Starting cartel and age analysis")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA
 #' ---------------------------------------------------------------------------
 
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
-load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
+load(file.path(CONFIG$data_dir, "04_01_estimate.Rdata"))
 avg_othours <- mean(all_pairs[ot_work == 1]$varot_hours)
 
 #' ---------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 #' =============================================================================
 #' ESTIMATE MAIN MODEL
 #' =============================================================================
-#' Input:  data/00_01_estimation_sample.rds
-#' Output: data/02_00_estimate.Rdata, data/02_00_estimate_probit.Rdata
+#' Input:  data/02_01_estimation_sample.rds
+#' Output: data/04_01_estimate.Rdata, data/04_01_estimate_probit.Rdata
 #' =============================================================================
 
 library('data.table')
@@ -11,7 +11,7 @@ library('alpaca')
 source('config.R')
 source('utils/logging.R')
 
-log_init("02_00_estimate.R")
+log_init("04_01_estimate.R")
 log_message("Starting main estimation")
 
 #' ---------------------------------------------------------------------------
@@ -19,7 +19,7 @@ log_message("Starting main estimation")
 #' ---------------------------------------------------------------------------
 
 set.seed(633491)
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 
 #' ---------------------------------------------------------------------------
 #' LOGIT ESTIMATION
@@ -34,7 +34,7 @@ mod_mod <- alpaca::biasCorr(mod)
 summary(mod_mod, type = "clustered", cluster = ~num_emp1)
 
 ensure_directory(CONFIG$data_dir)
-save(mod_mod, file = file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
+save(mod_mod, file = file.path(CONFIG$data_dir, "04_01_estimate.Rdata"))
 log_message("Saved logit estimates")
 
 #' ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ mod_probit <- alpaca::feglm(ot_work ~ opp_dist + suppliers_interacted + ot_rate 
 mod_probit_mod <- alpaca::biasCorr(mod_probit)
 summary(mod_probit_mod, type = "clustered", cluster = ~num_emp1)
 
-save(mod_probit_mod, file = file.path(CONFIG$data_dir, "02_00_estimate_probit.Rdata"))
+save(mod_probit_mod, file = file.path(CONFIG$data_dir, "04_01_estimate_probit.Rdata"))
 log_message("Saved probit estimates")
 
 log_complete(success = TRUE)

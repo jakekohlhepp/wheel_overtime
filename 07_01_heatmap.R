@@ -2,15 +2,15 @@
 #' HEATMAP VISUALIZATION
 #' =============================================================================
 #' Create heatmaps of allocative efficiency across network/access cost grid.
-#' Input:  file.path(CONFIG$data_dir, "02_00_estimate.Rdata")
-#'         file.path(CONFIG$data_dir, "00_01_estimation_sample.rds")
-#'         file.path(CONFIG$data_dir, "03_01_sim_random.rds")
-#'         file.path(CONFIG$data_dir, "03_02_sim_auction_straight.rds")
-#'         file.path(CONFIG$data_dir, "03_03_sim_informal.rds")
-#'         file.path(CONFIG$data_dir, "03_04_sim_informal_reverse.rds")
-#'         file.path(CONFIG$data_dir, "03_05_sim_informal_perfect.rds")
-#' Output: file.path(CONFIG$figures_dir, "03_98_heatmap.png")
-#'         file.path(CONFIG$figures_dir, "03_98_heatmap_less_granular.png")
+#' Input:  file.path(CONFIG$data_dir, "04_01_estimate.Rdata")
+#'         file.path(CONFIG$data_dir, "02_01_estimation_sample.rds")
+#'         file.path(CONFIG$data_dir, "06_02_sim_random.rds")
+#'         file.path(CONFIG$data_dir, "06_03_sim_auction_straight.rds")
+#'         file.path(CONFIG$data_dir, "06_04_sim_informal.rds")
+#'         file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds")
+#'         file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds")
+#' Output: file.path(CONFIG$figures_dir, "07_01_heatmap.png")
+#'         file.path(CONFIG$figures_dir, "07_01_heatmap_less_granular.png")
 #' =============================================================================
 
 library('ggplot2')
@@ -19,24 +19,24 @@ library('gridExtra')
 
 source('config.R')
 source('utils/logging.R')
-log_init("03_98_heatmap.R")
+log_init("07_01_heatmap.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA
 #' ---------------------------------------------------------------------------
 
 log_message("Loading estimation data and simulation results")
-load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
+load(file.path(CONFIG$data_dir, "04_01_estimate.Rdata"))
 
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 ### compute average ot per shift.
 avg_ot_hours <- sum(all_pairs$varot_hours) / sum(all_pairs$ot_work)
 
 ## compute minimum and maximum benchmarks
-random_assignment <- readRDS(file.path(CONFIG$data_dir, "03_01_sim_random.rds"))
+random_assignment <- readRDS(file.path(CONFIG$data_dir, "06_02_sim_random.rds"))
 min_benchmark <- mean(random_assignment$worker_value) * avg_ot_hours
 
-auctions <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_straight.rds"))
+auctions <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_straight.rds"))
 auctions[, worker_value := worker_value * avg_ot_hours]
 auctions[, worker_surplus := worker_surplus * avg_ot_hours]
 auctions_sum <- auctions[, .(mean_ineq = mean(share_top10),
@@ -49,13 +49,13 @@ max_benchmark <- auctions_sum$mean_allocative[1]
 #' ---------------------------------------------------------------------------
 
 log_message("Combining simulation results across regimes")
-results <- readRDS(file.path(CONFIG$data_dir, "03_03_sim_informal.rds"))
+results <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal.rds"))
 results[, regime := "Observed"]
 results_together <- copy(results)
-results <- readRDS(file.path(CONFIG$data_dir, "03_05_sim_informal_perfect.rds"))
+results <- readRDS(file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds"))
 results[, regime := "Positive"]
 results_together <- rbind(results_together, results)
-results <- readRDS(file.path(CONFIG$data_dir, "03_04_sim_informal_reverse.rds"))
+results <- readRDS(file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds"))
 results[, regime := "Negative"]
 results_together <- rbind(results_together, results)
 
@@ -78,7 +78,7 @@ p_cont <- ggplot(for_disp, aes(access_cost, network_reduction, fill = avg_alloc)
   facet_wrap(~ regime, ncol = 2) +
   ylab("Reduction per Potential Supplier ($)") +
   xlab("Overtime Access Cost ($)")
-ggsave(file.path(CONFIG$figures_dir, "03_98_heatmap_continuous.png"), p_cont, width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "07_01_heatmap_continuous.png"), p_cont, width = 12, height = 8, units = "in")
 
 #' ---------------------------------------------------------------------------
 #' DISCRETE HEATMAP
@@ -116,7 +116,7 @@ ggplot(agg_res, aes(access_cost, network_reduction, fill = avg_alloc)) +
   scale_x_discrete(labels = lab_less) +
   scale_y_discrete(labels = lab_less_y) +
   labs(fill = "% Efficiency") + theme(legend.title = element_text(size = 15), legend.text = element_text(size = 15), axis.title = element_text(size = 30), axis.text = element_text(size = 15), strip.text.x = element_text(size = 30))
-ggsave(file.path(CONFIG$figures_dir, "03_98_heatmap.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "07_01_heatmap.png"), width = 12, height = 8, units = "in")
 
 #' ---------------------------------------------------------------------------
 #' DISCRETIZED COLOR HEATMAP
@@ -139,6 +139,6 @@ ggplot(agg_res, aes(access_cost, network_reduction, fill = avg_alloc)) +
   scale_x_discrete(labels = lab_less) +
   scale_y_discrete(labels = lab_less_y) +
   labs(fill = "% Efficiency") + theme(legend.title = element_text(size = 15), legend.text = element_text(size = 15), axis.title = element_text(size = 30), axis.text = element_text(size = 15), strip.text.x = element_text(size = 30))
-ggsave(file.path(CONFIG$figures_dir, "03_98_heatmap_less_granular.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "07_01_heatmap_less_granular.png"), width = 12, height = 8, units = "in")
 
 log_complete(success = TRUE)
