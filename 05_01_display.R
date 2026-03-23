@@ -1,8 +1,8 @@
 #' =============================================================================
 #' DISPLAY ESTIMATION RESULTS
 #' =============================================================================
-#' Input:  data/02_00_estimate.Rdata, data/02_00_estimate_probit.Rdata
-#'         data/00_01_estimation_sample.rds
+#' Input:  data/04_01_estimate.Rdata, data/04_01_estimate_probit.Rdata
+#'         data/02_01_estimation_sample.rds
 #' Output: out/tables/02_01_main_estimates.tex
 #'         out/figures/02_01_officer_fe.png
 #'         out/figures/02_01_date_fe.png
@@ -17,17 +17,17 @@ library('lubridate')
 source('config.R')
 source('utils/logging.R')
 
-log_init("02_01_display.R")
+log_init("05_01_display.R")
 log_message("Starting display of estimation results")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA AND ESTIMATES
 #' ---------------------------------------------------------------------------
 
-load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
-load(file.path(CONFIG$data_dir, "02_00_estimate_probit.Rdata"))
+load(file.path(CONFIG$data_dir, "04_01_estimate.Rdata"))
+load(file.path(CONFIG$data_dir, "04_01_estimate_probit.Rdata"))
 
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 
 ## compute average ot hours.
 avg_othours <- mean(all_pairs[ot_work == 1]$varot_hours)

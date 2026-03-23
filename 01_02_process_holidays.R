@@ -4,7 +4,7 @@ library('haven')
 source('config.R')
 source('utils/logging.R')
 
-log_init('process_holidays.R')
+log_init('01_02_process_holidays.R')
 
 input_path <- file.path(CONFIG$raw_holidays_dir, 'data', 'us-federal-holidays-2011-2020.csv')
 output_path <- file.path(CONFIG$data_dir, 'holidays.dta')

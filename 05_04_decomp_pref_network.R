@@ -1,8 +1,8 @@
 #' =============================================================================
 #' DECOMPOSE PREFERENCES VS NETWORK
 #' =============================================================================
-#' Input:  data/00_01_estimation_sample.rds
-#'         data/02_00_estimate.Rdata
+#' Input:  data/02_01_estimation_sample.rds
+#'         data/04_01_estimate.Rdata
 #' Output: out/tables/02_04_decomp.tex
 #' =============================================================================
 
@@ -20,7 +20,7 @@ library('stargazer')
 source('config.R')
 source('utils/logging.R')
 
-log_init("02_04_decomp_pref_network.R")
+log_init("05_04_decomp_pref_network.R")
 log_message("Starting preference vs network decomposition")
 
 set.seed(490028)
@@ -32,8 +32,8 @@ set.seed(490028)
 ### simulations to parse contributions of network vs preferences.
 
 ### step 1: determine the constant that must be added to preferences when centrality is zero to achieve the same average work probability.
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
-load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
+load(file.path(CONFIG$data_dir, "04_01_estimate.Rdata"))
 
 date_fe <- data.table(datefe = getFEs(mod_mod)$analysis_workdate, analysis_workdate = as.Date(names(getFEs(mod_mod)$analysis_workdate)))
 officer_fe <- data.table(officerfe = getFEs(mod_mod)$num_emp1, num_emp1 = as.numeric(names(getFEs(mod_mod)$num_emp1)))

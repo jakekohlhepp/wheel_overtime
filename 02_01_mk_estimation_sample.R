@@ -7,9 +7,9 @@
 #'   3. Adding holiday, bereavement, and FMLA flags
 #'   4. Creating derived variables (model matrices, interaction terms)
 #'
-#' Input:  data/prep_01_panel_working.rds          (90-day network panel)
+#' Input:  data/01_06_panel_working.rds             (90-day network panel)
 #'         20170803_payworkers_comp/anonymized_data_073117.txt (raw pay data)
-#' Output: data/00_01_estimation_sample.rds
+#' Output: data/02_01_estimation_sample.rds
 #'
 #' Output Schema:
 #'   All columns from network panel, plus:
@@ -33,7 +33,7 @@ library('almanac')
 source('config.R')
 source('utils/logging.R')
 
-log_init("00_01_mk_estimation_sample.R")
+log_init("02_01_mk_estimation_sample.R")
 log_message("Building estimation sample")
 
 #' -----------------------------------------------------------------------------
@@ -141,10 +141,10 @@ setorder(all_pairs, "num_emp1", "analysis_workdate")
 contact_cols <- grep("^[0-9]+$", names(all_pairs), value = TRUE)
 if (length(contact_cols) > 0) all_pairs[, (contact_cols) := NULL]
 
-output_path <- file.path(CONFIG$data_dir, "00_01_estimation_sample.rds")
+output_path <- file.path(CONFIG$data_dir, "02_01_estimation_sample.rds")
 ensure_directory(dirname(output_path))
 saveRDS(all_pairs, output_path)
 
 log_message(paste("Saved:", output_path, "-", nrow(all_pairs), "rows,", uniqueN(all_pairs$num_emp1), "officers"))
 log_complete(success = TRUE)
-message("00_01_mk_estimation_sample complete")
+message("02_01_mk_estimation_sample complete")

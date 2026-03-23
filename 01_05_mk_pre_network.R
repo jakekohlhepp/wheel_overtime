@@ -4,11 +4,11 @@ library('haven')
 source('config.R')
 source('utils/logging.R')
 
-log_init('01_03_mk_pre_network.R')
+log_init('01_05_mk_pre_network.R')
 
 working_path <- file.path(CONFIG$data_dir, 'working_expanded.dta')
 pay_path <- file.path(CONFIG$data_dir, 'pay_data.dta')
-fornetwork_path <- file.path(CONFIG$data_dir, '01_02_fornetwork.dta')
+fornetwork_path <- file.path(CONFIG$data_dir, '01_04_fornetwork.dta')
 employee_path <- file.path(CONFIG$data_dir, 'employee_data.dta')
 
 assert_required_files(c(working_path, pay_path, fornetwork_path, employee_path))
@@ -138,7 +138,7 @@ for (window in CONFIG$pre_network_windows) {
   export_panel[, original_hire_date := format_stata_datetime(original_hire_date)]
   export_panel[, an_week := format_stata_week(analysis_dates)]
 
-  output_path <- file.path(CONFIG$data_dir, paste0('01_03_pre_network_', window, '.csv'))
+  output_path <- file.path(CONFIG$data_dir, paste0('01_05_pre_network_', window, '.csv'))
   fwrite(export_panel, output_path, na = '', eol = '\r\n')
   log_message(paste('Saved', output_path))
 }

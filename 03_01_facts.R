@@ -1,7 +1,7 @@
 #' =============================================================================
 #' DESCRIPTIVE FACTS AND NETWORK VISUALIZATION
 #' =============================================================================
-#' Input:  data/00_01_estimation_sample.rds
+#' Input:  data/02_01_estimation_sample.rds
 #'         data/{pre_network_prefix}{network_window_default}.csv (tenure, injury)
 #'         Contact matrix via load_contact_matrix() (for network plots)
 #'         {raw_pay_dir}/anonymized_data_073117.txt (bereavement, FMLA flags)
@@ -14,7 +14,7 @@
 
 source('config.R')
 source('utils/logging.R')
-log_init("01_00_facts.R")
+log_init("03_01_facts.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD PACKAGES
@@ -38,7 +38,7 @@ library('xtable')
 #' ---------------------------------------------------------------------------
 
 log_message("Loading estimation sample")
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 
 #' ---------------------------------------------------------------------------
 #' MERGE TENURE AND NATURE OF INJURY
@@ -472,5 +472,5 @@ ggplot(data = all_pairs[!is.na(l_wheel_degree)][resid_instrument <= quantile(res
 
 ggsave(file.path(CONFIG$figures_dir, "01_00_relevance_resid.png"), width = 12, height = 8, units = "in")
 
-log_message("01_00_facts.R completed successfully")
+log_message("03_01_facts.R completed successfully")
 log_complete(success = TRUE)

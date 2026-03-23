@@ -64,10 +64,10 @@ CONFIG <- list(
   # Network input/output file patterns
   # ---------------------------------------------------------------------------
   ## Input: data/{pre_network_prefix}{window}.csv
-  pre_network_prefix = "01_03_pre_network_",
+  pre_network_prefix = "01_05_pre_network_",
   ## Output: data/{panel_output_prefix}{suffix}.rds
   ## suffix is "" for 90-day (default), "_30" for 30-day, "_180" for 180-day
-  panel_output_prefix = "prep_01_panel_working",
+  panel_output_prefix = "01_06_panel_working",
 
   # ---------------------------------------------------------------------------
   # Map script parameters
@@ -76,7 +76,7 @@ CONFIG <- list(
   map_div_code_min = 808,
   map_width = 12,
   map_height = 12,
-  map_output = "out/figures/prep_02_la_street_map.png",
+  map_output = "out/figures/01_07_la_street_map.png",
 
   # ---------------------------------------------------------------------------
   # Estimation sample parameters

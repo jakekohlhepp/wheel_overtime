@@ -3,10 +3,10 @@
 #' =============================================================================
 #' Sort connections negatively correlated with overtime valuation.
 #' Vary access costs and network reduction parameters.
-#' Input:  file.path(CONFIG$data_dir, "02_00_estimate.Rdata")
-#'         file.path(CONFIG$data_dir, "00_01_estimation_sample.rds")
-#' Output: file.path(CONFIG$data_dir, "03_04_sim_informal_reverse.rds")
-#'         file.path(CONFIG$data_dir, "03_04_sim_informal_reverse_byworker.rds")
+#' Input:  file.path(CONFIG$data_dir, "04_01_estimate.Rdata")
+#'         file.path(CONFIG$data_dir, "02_01_estimation_sample.rds")
+#' Output: file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds")
+#'         file.path(CONFIG$data_dir, "06_05_sim_informal_reverse_byworker.rds")
 #' =============================================================================
 
 library('data.table')
@@ -16,7 +16,7 @@ library('parallel')
 
 source('config.R')
 source('utils/logging.R')
-log_init("03_04_sim_informal_reverse.R")
+log_init("06_05_sim_informal_reverse.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA
@@ -24,9 +24,9 @@ log_init("03_04_sim_informal_reverse.R")
 
 set.seed(387044)
 log_message("Loading estimation data and sample")
-load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
+load(file.path(CONFIG$data_dir, "04_01_estimate.Rdata"))
 
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 officer_fe <- data.table(officer_fe = getFEs(mod_mod)$num_emp1, num_emp1 = as.numeric(names(getFEs(mod_mod)$num_emp1)))
 all_pairs <- merge(all_pairs, officer_fe, by = "num_emp1", all.x = TRUE)
 date_fe <- data.table(date_fe = getFEs(mod_mod)$analysis_workdate, analysis_workdate = as.Date(names(getFEs(mod_mod)$analysis_workdate)))
@@ -160,7 +160,7 @@ rm(out); gc()
 
 ensure_directory(CONFIG$data_dir)
 log_message("Saving reverse informal trade simulation results")
-saveRDS(results, file.path(CONFIG$data_dir, "03_04_sim_informal_reverse.rds"))
-saveRDS(results_byworker, file.path(CONFIG$data_dir, "03_04_sim_informal_reverse_byworker.rds"))
+saveRDS(results, file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds"))
+saveRDS(results_byworker, file.path(CONFIG$data_dir, "06_05_sim_informal_reverse_byworker.rds"))
 
 log_complete(success = TRUE)

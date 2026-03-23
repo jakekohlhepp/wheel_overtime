@@ -1,7 +1,7 @@
 #' =============================================================================
 #' ESTIMATE TIME-VARYING MODEL
 #' =============================================================================
-#' Input:  data/00_01_estimation_sample.rds
+#' Input:  data/02_01_estimation_sample.rds
 #'         data/{pre_network_prefix}{network_window_default}.csv
 #' Output: (plots displayed interactively)
 #' =============================================================================
@@ -14,7 +14,7 @@ library('stringr')
 source('config.R')
 source('utils/logging.R')
 
-log_init("02_00b_estimate_many.R")
+log_init("04_02_estimate_many.R")
 log_message("Starting time-varying estimation")
 
 #' ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ log_message("Starting time-varying estimation")
 #' ---------------------------------------------------------------------------
 
 set.seed(633491)
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 
 # original hire date
 rawer_data <- fread(file.path(CONFIG$data_dir, paste0(CONFIG$pre_network_prefix, CONFIG$network_window_default, ".csv")))

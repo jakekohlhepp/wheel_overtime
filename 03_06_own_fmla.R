@@ -1,13 +1,13 @@
 #' =============================================================================
 #' FAMILY MEDICAL LEAVE EVENT STUDY - OWN CONNECTEDNESS
 #' =============================================================================
-#' Input:  data/00_01_estimation_sample.rds
+#' Input:  data/02_01_estimation_sample.rds
 #' Output: out/figures/01_05b_own_fmla.png
 #' =============================================================================
 
 source('config.R')
 source('utils/logging.R')
-log_init("01_05b_own_fmla.R")
+log_init("03_06_own_fmla.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD PACKAGES
@@ -23,7 +23,7 @@ library('ggplot2')
 #' ---------------------------------------------------------------------------
 
 log_message("Loading estimation sample")
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 
 #' ---------------------------------------------------------------------------
 #' IDENTIFY FAMILY LEAVE EVENTS
@@ -77,5 +77,5 @@ all_pairs[, first_treat := ifelse(max(treat) == 1, min(first_treat, na.rm = TRUE
 twfe <- feols(wheel_degree ~ treat | num_emp1 + analysis_workdate, data = all_pairs)
 summary(twfe)
 
-log_message("01_05b_own_fmla.R completed successfully")
+log_message("03_06_own_fmla.R completed successfully")
 log_complete(success = TRUE)

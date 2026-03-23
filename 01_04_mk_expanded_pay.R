@@ -5,14 +5,14 @@ library('zoo')
 source('config.R')
 source('utils/logging.R')
 
-log_init('01_02_mk_expanded_pay.R')
+log_init('01_04_mk_expanded_pay.R')
 
 pay_path <- file.path(CONFIG$data_dir, 'pay_data.dta')
 workers_path <- file.path(CONFIG$data_dir, 'workers_comp.dta')
 employee_path <- file.path(CONFIG$data_dir, 'employee_data.dta')
 weather_path <- file.path(CONFIG$data_dir, 'weather_daily.dta')
 holidays_path <- file.path(CONFIG$data_dir, 'holidays.dta')
-fornetwork_path <- file.path(CONFIG$data_dir, '01_02_fornetwork.dta')
+fornetwork_path <- file.path(CONFIG$data_dir, '01_04_fornetwork.dta')
 working_path <- file.path(CONFIG$data_dir, 'working_expanded.dta')
 raw_path <- file.path(CONFIG$raw_pay_dir, 'data', 'anonymized_data_073117.dta')
 
@@ -71,7 +71,7 @@ pay_counts <- pay_counts[, .(
   unique_emps = sum(unique_emps, na.rm = TRUE),
   unique_codes = sum(unique_codes, na.rm = TRUE)
 ), by = year]
-fwrite(pay_counts, file.path(CONFIG$output_dir, '01_02_work_data_counts.csv'))
+fwrite(pay_counts, file.path(CONFIG$output_dir, '01_04_work_data_counts.csv'))
 
 nature_counts <- copy(workers_comp)
 nature_all <- copy(nature_counts)
@@ -89,7 +89,7 @@ nature_counts[, percent := emp_count / emp_count[.N]]
 nature_counts[, ovrl := natureofinjury == 'All Types']
 setorder(nature_counts, -ovrl, -emp_count)
 nature_counts[, ovrl := NULL]
-fwrite(nature_counts, file.path(CONFIG$output_dir, '01_02_nature.csv'))
+fwrite(nature_counts, file.path(CONFIG$output_dir, '01_04_nature.csv'))
 
 cause_counts <- copy(workers_comp)
 cause_all <- copy(cause_counts)
@@ -103,7 +103,7 @@ cause_counts[, percent := emp_count / emp_count[.N]]
 cause_counts[, ovrl := claimcausegroup == 'All Types']
 setorder(cause_counts, -ovrl, -emp_count)
 cause_counts[, ovrl := NULL]
-fwrite(cause_counts, file.path(CONFIG$output_dir, '01_02_cause.csv'))
+fwrite(cause_counts, file.path(CONFIG$output_dir, '01_04_cause.csv'))
 
 raw <- as.data.table(read_dta(raw_path))
 stopifnot(all(is.na(raw$job_end_date)))

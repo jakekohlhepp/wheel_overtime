@@ -6,21 +6,21 @@
 #' Produces equity-efficiency frontier, histograms, summary tables, and
 #' individual-level winner/loser analysis.
 #'
-#' Input:  data/02_00_estimate.Rdata               (logit model)
-#'         data/00_01_estimation_sample.rds         (estimation sample)
-#'         data/03_03_sim_informal.rds              (status quo sim)
-#'         data/03_02_sim_auction_straight.rds      (uniform-wage auction)
-#'         data/03_02_sim_auction_dev.rds           (uniform-markdown auction)
-#'         data/03_00_sim_frontier.rds      (random assignment frontier)
-#'         data/03_02_sim_auction_dev_markdown.rds  (markdown by date)
-#'         data/03_02_sim_auction_straight_wage.rds (wage by date)
-#'         data/03_03_sim_informal_byworker.rds     (worker-level informal)
-#'         data/03_02_sim_auction_dev_byworker.rds  (worker-level markdown)
-#'         data/03_02_sim_auction_straight_byworker.rds (worker-level wage)
-#'         data/03_04_sim_informal_reverse.rds      (reverse access costs)
-#'         data/03_05_sim_informal_perfect.rds      (perfect access)
-#' Output: out/figures/03_99_*.png
-#'         out/tables/03_99_*.tex
+#' Input:  data/04_01_estimate.Rdata               (logit model)
+#'         data/02_01_estimation_sample.rds         (estimation sample)
+#'         data/06_04_sim_informal.rds              (status quo sim)
+#'         data/06_03_sim_auction_straight.rds      (uniform-wage auction)
+#'         data/06_03_sim_auction_dev.rds           (uniform-markdown auction)
+#'         data/06_01_sim_frontier.rds      (random assignment frontier)
+#'         data/06_03_sim_auction_dev_markdown.rds  (markdown by date)
+#'         data/06_03_sim_auction_straight_wage.rds (wage by date)
+#'         data/06_04_sim_informal_byworker.rds     (worker-level informal)
+#'         data/06_03_sim_auction_dev_byworker.rds  (worker-level markdown)
+#'         data/06_03_sim_auction_straight_byworker.rds (worker-level wage)
+#'         data/06_05_sim_informal_reverse.rds      (reverse access costs)
+#'         data/06_06_sim_informal_perfect.rds      (perfect access)
+#' Output: out/figures/07_02_*.png
+#'         out/tables/07_02_*.tex
 #' =============================================================================
 
 library('data.table')
@@ -33,15 +33,15 @@ library('scales')
 source('config.R')
 source('utils/logging.R')
 
-log_init("03_99_compare_sims.R")
+log_init("07_02_compare_sims.R")
 log_message("Comparing simulation outcomes")
 
 #' -----------------------------------------------------------------------------
 #' LOAD DATA AND MODEL
 #' -----------------------------------------------------------------------------
 
-load(file.path(CONFIG$data_dir, "02_00_estimate.Rdata"))
-all_pairs <- readRDS(file.path(CONFIG$data_dir, "00_01_estimation_sample.rds"))
+load(file.path(CONFIG$data_dir, "04_01_estimate.Rdata"))
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 
 ## Average OT hours per shift
 avg_ot_hours <- sum(all_pairs$varot_hours) / sum(all_pairs$ot_work)
@@ -60,7 +60,7 @@ all_pairs <- all_pairs[!is.na(officer_fe), ]
 #' -----------------------------------------------------------------------------
 
 ## Status quo (informal trading)
-status_quo <- readRDS(file.path(CONFIG$data_dir, "03_03_sim_informal.rds"))
+status_quo <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal.rds"))
 status_quo[, worker_value := worker_value * avg_ot_hours]
 status_quo <- status_quo[access_cost_mult == 1, ]
 status_quo[, worker_surplus := worker_surplus * avg_ot_hours]
@@ -71,7 +71,7 @@ status_quo_sum <- status_quo[, .(mean_ineq = mean(share_top10),
                                  mean_workersurplus = mean(worker_surplus))]
 
 ## Uniform-wage auction
-auctions <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_straight.rds"))
+auctions <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_straight.rds"))
 auctions[, worker_value := worker_value * avg_ot_hours]
 auctions[, worker_surplus := worker_surplus * avg_ot_hours]
 auctions_sum <- auctions[, .(mean_ineq = mean(share_top10),
@@ -80,7 +80,7 @@ auctions_sum <- auctions[, .(mean_ineq = mean(share_top10),
                               mean_workersurplus = mean(worker_surplus))]
 
 ## Uniform-markdown auction
-auctions_dev <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_dev.rds"))
+auctions_dev <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_dev.rds"))
 auctions_dev[, worker_value := worker_value * avg_ot_hours]
 auctions_dev[, worker_surplus := worker_surplus * avg_ot_hours]
 auctions_dev_sum <- auctions_dev[, .(mean_ineq = mean(share_top10),
@@ -89,7 +89,7 @@ auctions_dev_sum <- auctions_dev[, .(mean_ineq = mean(share_top10),
                                       mean_workersurplus = mean(worker_surplus))]
 
 ## Random assignment frontier
-managers_val <- readRDS(file.path(CONFIG$data_dir, "03_00_sim_frontier.rds"))
+managers_val <- readRDS(file.path(CONFIG$data_dir, "06_01_sim_frontier.rds"))
 managers_val_sum <- managers_val[, .(mean_surplus = mean(worker_value) * avg_ot_hours,
                                      mean_ineq = mean(share_top10)), by = "savy_num"]
 
@@ -100,7 +100,7 @@ managers_val_sum <- managers_val[, .(mean_surplus = mean(worker_value) * avg_ot_
 ensure_directory(CONFIG$figures_dir)
 ensure_directory(CONFIG$tables_dir)
 
-results_wage <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_dev_markdown.rds"))
+results_wage <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_dev_markdown.rds"))
 results_wage <- results_wage[, .(mean_wage = mean(sim_markdown)), by = "analysis_workdate"]
 
 ggplot(data = results_wage, aes(x = analysis_workdate, y = mean_wage)) +
@@ -109,9 +109,9 @@ ggplot(data = results_wage, aes(x = analysis_workdate, y = mean_wage)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
-ggsave(file.path(CONFIG$figures_dir, "03_99_markdowns_bydate.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "07_02_markdowns_bydate.png"), width = 12, height = 8, units = "in")
 
-results_wage <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_straight_wage.rds"))
+results_wage <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_straight_wage.rds"))
 results_wage <- results_wage[, .(mean_wage = -mean(sim_win_wage)), by = "analysis_workdate"]
 
 ggplot(data = results_wage, aes(x = analysis_workdate, y = mean_wage)) +
@@ -120,7 +120,7 @@ ggplot(data = results_wage, aes(x = analysis_workdate, y = mean_wage)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
-ggsave(file.path(CONFIG$figures_dir, "03_99_uniformwages_bydate.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "07_02_uniformwages_bydate.png"), width = 12, height = 8, units = "in")
 
 #' -----------------------------------------------------------------------------
 #' EQUITY-EFFICIENCY FRONTIER
@@ -140,7 +140,7 @@ ggplot(data = managers_val_sum[, c("mean_surplus", "mean_ineq")], aes(x = mean_s
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
-ggsave(file.path(CONFIG$figures_dir, "03_99_equity_efficiency.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "07_02_equity_efficiency.png"), width = 12, height = 8, units = "in")
 
 ## Differences between random and max
 print(managers_val_sum[savy_num == 0]$mean_surplus - auctions_sum$mean_allocative)
@@ -165,7 +165,7 @@ ggplot(all_auctions, aes(x = share_top10, fill = a_type)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
-ggsave(file.path(CONFIG$figures_dir, "03_99_inequality_hist.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "07_02_inequality_hist.png"), width = 12, height = 8, units = "in")
 
 ggplot(all_auctions, aes(x = worker_value, fill = a_type)) +
   geom_histogram(position = "identity", alpha = 0.8, bins = 100) +
@@ -176,7 +176,7 @@ ggplot(all_auctions, aes(x = worker_value, fill = a_type)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
-ggsave(file.path(CONFIG$figures_dir, "03_99_nonwage_utility_hist.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "07_02_nonwage_utility_hist.png"), width = 12, height = 8, units = "in")
 
 ggplot(all_auctions, aes(x = worker_surplus, fill = a_type)) +
   geom_histogram(position = "identity", alpha = 0.8, bins = 100) +
@@ -186,7 +186,7 @@ ggplot(all_auctions, aes(x = worker_surplus, fill = a_type)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
-ggsave(file.path(CONFIG$figures_dir, "03_99_worker_surplus_hist.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "07_02_worker_surplus_hist.png"), width = 12, height = 8, units = "in")
 
 ggplot(all_auctions, aes(x = wage_bill, fill = a_type)) +
   geom_histogram(position = "identity", alpha = 0.8, binwidth = 5000) +
@@ -196,7 +196,7 @@ ggplot(all_auctions, aes(x = wage_bill, fill = a_type)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
-ggsave(file.path(CONFIG$figures_dir, "03_99_wages_hist.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "07_02_wages_hist.png"), width = 12, height = 8, units = "in")
 
 #' -----------------------------------------------------------------------------
 #' SUMMARY TABLES
@@ -231,27 +231,27 @@ colnames(fortable)[-1] <- rep(c("p5", "Mean", "p95"), 4)
 
 kable(fortable[, .SD, .SDcols = 1:7], "latex", align = "c", booktabs = TRUE, linesep = c(""), escape = F, caption = NA, label = NA) %>%
   add_header_above(c(" " = 1, "Overtime Wage Costs" = 3, "Worker Surplus" = 3)) %>%
-  cat(., file = file.path(CONFIG$tables_dir, "03_99_system_summary_wages_surplus.tex"))
+  cat(., file = file.path(CONFIG$tables_dir, "07_02_system_summary_wages_surplus.tex"))
 
 kable(fortable[, .SD, .SDcols = c(1, 8:13)], "latex", align = "c", booktabs = TRUE, linesep = c(""), escape = F, caption = NA, label = NA) %>%
   add_header_above(c(" " = 1, "Allocative Efficiency" = 3, "Share OT by Top 10" = 3)) %>%
-  cat(., file = file.path(CONFIG$tables_dir, "03_99_system_summary_inequality_allocative.tex"))
+  cat(., file = file.path(CONFIG$tables_dir, "07_02_system_summary_inequality_allocative.tex"))
 
 #' -----------------------------------------------------------------------------
 #' INDIVIDUAL WINNERS AND LOSERS
 #' -----------------------------------------------------------------------------
 
-status_quo_byemp <- readRDS(file.path(CONFIG$data_dir, "03_03_sim_informal_byworker.rds"))
+status_quo_byemp <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal_byworker.rds"))
 status_quo_byemp_sum <- status_quo_byemp[access_cost_mult == 1, .(s_surplus = mean(worker_surplus * avg_ot_hours),
                                                                     s_otpay = mean(total_ot_pay),
                                                                     s_totalot = mean(total_ot)), by = "num_emp1"]
 
-auction_dev_byemp <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_dev_byworker.rds"))
+auction_dev_byemp <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_dev_byworker.rds"))
 auction_dev_byemp_sum <- auction_dev_byemp[, .(m_surplus = mean(worker_surplus * avg_ot_hours),
                                                 m_otpay = mean(total_ot_pay),
                                                 m_totalot = mean(total_ot)), by = "num_emp1"]
 
-auction_byemp <- readRDS(file.path(CONFIG$data_dir, "03_02_sim_auction_straight_byworker.rds"))
+auction_byemp <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_straight_byworker.rds"))
 auction_byemp_sum <- auction_byemp[, .(a_surplus = mean(worker_surplus * avg_ot_hours),
                                         a_otpay = mean(total_ot_pay),
                                         a_totalot = mean(total_ot)), by = "num_emp1"]
@@ -341,13 +341,13 @@ cartel[, m_totalot := paste0(comma_format(accuracy = 1)(m_totalot))]
 colnames(cartel) <- c("Officer ID", "FE Rank", rep(c("Informal", "Wage", "Markdown"), 3))
 kable(cartel, "latex", align = "c", booktabs = TRUE, linesep = c(""), escape = F, caption = NA, label = NA) %>%
   add_header_above(c(" " = 2, "Overtime Shifts" = 3, "Overtime Pay" = 3, "Worker Surplus" = 3)) %>%
-  cat(., file = file.path(CONFIG$tables_dir, "03_99_cartel_impacts.tex"))
+  cat(., file = file.path(CONFIG$tables_dir, "07_02_cartel_impacts.tex"))
 
 #' -----------------------------------------------------------------------------
 #' ACCESS COST ROBUSTNESS
 #' -----------------------------------------------------------------------------
 
-status_quo <- readRDS(file.path(CONFIG$data_dir, "03_03_sim_informal.rds"))
+status_quo <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal.rds"))
 status_quo[, worker_value := worker_value * avg_ot_hours]
 status_quo[, worker_surplus := worker_surplus * avg_ot_hours]
 status_quo_sum <- status_quo[, .(mean_ineq = mean(share_top10),
@@ -355,7 +355,7 @@ status_quo_sum <- status_quo[, .(mean_ineq = mean(share_top10),
                                  mean_wage_bill = mean(wage_bill),
                                  mean_workersurplus = mean(worker_surplus)), by = "access_cost_mult"]
 
-status_quo_reverse <- readRDS(file.path(CONFIG$data_dir, "03_04_sim_informal_reverse.rds"))
+status_quo_reverse <- readRDS(file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds"))
 status_quo_reverse[, worker_value := worker_value * avg_ot_hours]
 status_quo_reverse[, worker_surplus := worker_surplus * avg_ot_hours]
 status_quo_reverse_sum <- status_quo_reverse[, .(mean_ineq = mean(share_top10),
@@ -363,7 +363,7 @@ status_quo_reverse_sum <- status_quo_reverse[, .(mean_ineq = mean(share_top10),
                                                   mean_wage_bill = mean(wage_bill),
                                                   mean_workersurplus = mean(worker_surplus)), by = "access_cost_mult"]
 
-status_quo_perfect <- readRDS(file.path(CONFIG$data_dir, "03_05_sim_informal_perfect.rds"))
+status_quo_perfect <- readRDS(file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds"))
 status_quo_perfect[, worker_value := worker_value * avg_ot_hours]
 status_quo_perfect[, worker_surplus := worker_surplus * avg_ot_hours]
 status_quo_perfect_sum <- status_quo_perfect[, .(mean_ineq = mean(share_top10),
@@ -387,7 +387,7 @@ ggplot(data = together, aes(x = access_cost_mult, y = mean_allocative, color = R
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 30),
         legend.title = element_text(size = 30), legend.text = element_text(size = 30))
-ggsave(file.path(CONFIG$figures_dir, "03_99_access_cost_robustness.png"), width = 12, height = 8, units = "in")
+ggsave(file.path(CONFIG$figures_dir, "07_02_access_cost_robustness.png"), width = 12, height = 8, units = "in")
 
 log_complete(success = TRUE)
-message("03_99_compare_sims complete")
+message("07_02_compare_sims complete")

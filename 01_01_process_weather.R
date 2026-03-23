@@ -4,7 +4,7 @@ library('haven')
 source('config.R')
 source('utils/logging.R')
 
-log_init('process_weather.R')
+log_init('01_01_process_weather.R')
 
 input_path <- file.path(CONFIG$raw_weather_dir, 'data', '1834210.csv')
 output_path <- file.path(CONFIG$data_dir, 'weather_daily.dta')
