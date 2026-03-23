@@ -62,9 +62,19 @@ stopifnot(all_pairs[matched_injury == 1, ]$ot_work == 1 | all_pairs[matched_inju
 
 all_pairs[inj_stint > 0, first_work := min(first_work, na.rm = TRUE), by = c("num_emp1", "inj_stint")]
 all_pairs[inj_stint == 0, first_work := min(analysis_workdate), by = c("num_emp1", "inj_stint")]
+## Drop days between injury and first return to work. An officer recovering from
+## injury is structurally absent from the division schedule and cannot be in the
+## control condition for other officers' OT decisions. Keeping these days would
+## contaminate the comparison group with observation-days where the officer is
+## known to be off the wheel by design. The injury day itself is retained so we
+## can study the period immediately around the event.
+## NOTE: officers who never return to work after injury will have no post-injury
+## observations and will drop from all regressions via the officer fixed effect.
 all_pairs <- all_pairs[analysis_workdate >= first_work | matched_injury == 1, ]
 
-## Restrict to estimation date range
+## Restrict to the core estimation window (2015-01-01 to 2016-06-30). The
+## broader panel (from 2014-07-01) exists only to allow rolling window exposure
+## histories to accumulate before the injury window opens.
 all_pairs <- all_pairs[analysis_workdate >= CONFIG$estimation_start & analysis_workdate <= CONFIG$estimation_end, ]
 
 log_message(paste("After date/injury filter:", nrow(all_pairs), "rows,", uniqueN(all_pairs$num_emp1), "officers"))

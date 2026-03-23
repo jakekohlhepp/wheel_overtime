@@ -67,6 +67,10 @@ all_pairs[, rel_time := analysis_workdate - first_treat]
 #' ---------------------------------------------------------------------------
 
 log_message("Estimating TWFE model")
+## Exclude the bereaved officers from the regression. The estimand is the peer
+## effect of a co-worker's bereavement absence on *other* officers' connectedness.
+## Including the bereaved officer (does_leave == 1) would mix the peer effect
+## with that officer's own mechanical degree drop while absent from the schedule.
 twfe <- feols(l_degree ~ i(rel_time, ref = -c(1, Inf)) | num_emp1 + analysis_workdate, data = all_pairs[does_leave == 0])
 
 ensure_directory(CONFIG$figures_dir)

@@ -65,6 +65,12 @@ all_pairs[, rel_time := analysis_workdate - first_treat]
 #' ---------------------------------------------------------------------------
 
 log_message("Estimating TWFE models")
+## Exclude the terminating officers themselves from the regression. The research
+## question is whether a peer's departure affects *other* officers' connectedness
+## (a peer effect), not whether the departing officer's own degree changes
+## mechanically as they exit. Including does_term == 1 officers would confound
+## the peer effect estimate with the mechanical drop in the departing officer's
+## own degree at termination.
 twfe <- feols(degree ~ treat | num_emp1 + analysis_workdate, data = all_pairs[does_term == 0])
 summary(twfe)
 

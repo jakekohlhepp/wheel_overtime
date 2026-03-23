@@ -37,6 +37,13 @@ rm(contact_matrix)
 
 log_message("Identifying new hires and assigning treatment")
 all_pairs[, first_time := min(analysis_workdate), by = "num_emp1"]
+## A new hire is treated as a network shock only if they enter on or after
+## 2015-02-01. Hires entering in January 2015 (the first month of the
+## estimation window) are excluded because they would have no pre-period
+## observations in the estimation sample, making their event study uninformative.
+## TODO: This cutoff should be derived from a minimum required pre-period window
+## rather than hardcoded as 2015-02-01. Verify that one month of pre-period is
+## sufficient for the parallel-trends assumption.
 all_pairs[, is_hire := first_time == analysis_workdate & first_time >= as.Date('2015-02-01')]
 all_pairs[, does_hire := max(is_hire), by = "num_emp1"]
 
@@ -65,6 +72,10 @@ all_pairs[, rel_time := analysis_workdate - first_treat]
 #' ---------------------------------------------------------------------------
 
 log_message("Estimating TWFE model")
+## Exclude the new hires themselves from the regression. We are estimating the
+## peer effect of a new hire's arrival on incumbent officers' connectedness.
+## Including the new hire (does_hire == 1) would mix the peer effect with the
+## mechanical change in the new hire's own degree as they join the network.
 twfe <- feols(l_degree ~ i(rel_time, ref = -c(1, Inf)) | num_emp1 + analysis_workdate, data = all_pairs[does_hire == 0], cluster = ~num_emp1)
 
 ensure_directory(CONFIG$figures_dir)
