@@ -67,6 +67,11 @@ all_pairs[, rel_time := analysis_workdate - first_treat]
 #' ---------------------------------------------------------------------------
 
 log_message("Estimating TWFE model")
+## Exclude the officers who take FMLA leave from the regression. The estimand
+## is the peer effect of a co-worker's FMLA absence on *other* officers'
+## connectedness. Including the FMLA-taking officer (does_leave == 1) would
+## confound the peer effect with the mechanical change in that officer's own
+## degree while they are absent from the schedule.
 twfe <- feols(l_degree ~ i(rel_time, ref = -c(1, Inf)) | num_emp1 + analysis_workdate, data = all_pairs[does_leave == 0])
 
 ensure_directory(CONFIG$figures_dir)

@@ -44,11 +44,10 @@ write.csv(working, file.path(CONFIG$data_dir, "01_07_list_tofill.csv"))
 shape <- read_sf(dsn = districts_path, layer = CONFIG$districts_layer)
 
 log_message("Fetching OpenStreetMap road data for Los Angeles")
-la_major <- getbb(place_name = "Los Angeles") |>
-  opq() |>
-  add_osm_feature(key = "highway",
-                  value = c("motorway", "primary", "secondary")) |>
-  osmdata_sf()
+la_bbox  <- getbb(place_name = "Los Angeles")
+la_query <- add_osm_feature(opq(la_bbox), key = "highway",
+                             value = c("motorway", "primary", "secondary"))
+la_major <- osmdata_sf(la_query)
 
 #' -----------------------------------------------------------------------------
 #' GEOCODE OFFICE LOCATIONS
