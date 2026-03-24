@@ -150,6 +150,17 @@ scenario_colors <- c(
   "Informal Trade"           = "#d73027"    # red
 )
 
+## Manual label nudges — Informal Trade & Markdown are very close, so
+## stagger labels to avoid overlap.
+scenario_pts$nudge_x <- 0
+scenario_pts$nudge_y <- 0
+scenario_pts$nudge_y[scenario_pts$label == "Uniform-Wage Auction"]     <-  0.02
+scenario_pts$nudge_x[scenario_pts$label == "Uniform-Wage Auction"]     <-  50000
+scenario_pts$nudge_y[scenario_pts$label == "Informal Trade"]           <- -0.025
+scenario_pts$nudge_x[scenario_pts$label == "Informal Trade"]           <- -200000
+scenario_pts$nudge_y[scenario_pts$label == "Uniform-Markdown Auction"] <-  0.025
+scenario_pts$nudge_x[scenario_pts$label == "Uniform-Markdown Auction"] <- -200000
+
 ggplot() +
   ## frontier curve — thin, grey, behind the points
   geom_line(data = managers_val_sum[, c("mean_surplus", "mean_ineq")],
@@ -160,16 +171,18 @@ ggplot() +
              aes(x = mean_allocative, y = mean_ineq,
                  colour = label, fill = label),
              shape = 21, size = 5, stroke = 1.2) +
-  ## scenario labels — offset above each point, matched color
+  ## scenario labels — manually nudged to avoid overlap
   geom_text(data = scenario_pts,
-            aes(x = mean_allocative, y = mean_ineq,
+            aes(x = mean_allocative + nudge_x,
+                y = mean_ineq + nudge_y,
                 label = label, colour = label),
-            vjust = -1.1, size = 5, fontface = "bold", show.legend = FALSE) +
+            size = 4.5, fontface = "bold", show.legend = FALSE) +
   scale_colour_manual(values = scenario_colors, name = NULL) +
   scale_fill_manual(values = scenario_colors, name = NULL) +
   scale_x_continuous(labels = function(l) paste0(round(l / 1e6, 2), "m"),
                      expand = expansion(mult = c(0.05, 0.08))) +
   scale_y_continuous(expand = expansion(mult = c(0.05, 0.12))) +
+  coord_cartesian(clip = "off") +
   xlab("Allocative Efficiency ($)") +
   ylab("Overtime Share of Top 10%") +
   theme_bw(base_size = 16) +
@@ -178,7 +191,8 @@ ggplot() +
     panel.grid.minor  = element_blank(),
     axis.title        = element_text(size = 18),
     axis.text         = element_text(size = 14),
-    legend.position   = "none"   # labels on plot are sufficient
+    legend.position   = "none",
+    plot.margin       = margin(20, 60, 10, 10)
   )
 ggsave(file.path(CONFIG$figures_dir, "07_02_equity_efficiency.png"),
        width = 10, height = 7, units = "in", dpi = 300)
