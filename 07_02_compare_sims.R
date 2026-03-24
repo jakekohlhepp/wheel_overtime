@@ -67,6 +67,7 @@ sq_cost <- unname(coef(mod_mod)["opp_dist"])
 status_quo <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal.rds"))
 status_quo[, worker_value := worker_value * avg_ot_hours]
 status_quo <- status_quo[network_reduction == sq_net & access_cost == sq_cost, ]
+status_quo[, c("network_reduction", "access_cost") := NULL]
 status_quo[, worker_surplus := worker_surplus * avg_ot_hours]
 status_quo_sum <- status_quo[, .(mean_ineq = mean(share_top10),
                                  mean_allocative = mean(worker_value),
