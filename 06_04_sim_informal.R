@@ -51,97 +51,192 @@ beta_nw  <- coef(mod_mod)["normal_work"]
 beta_ot  <- coef(mod_mod)["ot_rate"]
 
 #' ---------------------------------------------------------------------------
+#' PREPARE SIMULATION DATA (pre-split by date for speed)
+#' ---------------------------------------------------------------------------
+
+## Pre-compute the grid-invariant parts of utility and valuation.
+## true_valuation = (date_fe + officer_fe + sr*beta + nw*beta + shock) / beta_ot
+## — the net/cost terms cancel in the valuation formula, so base_val is
+##   constant across all grid cells.
+all_pairs[, base_util := date_fe + officer_fe +
+            seniority_rank * beta_sr + normal_work * beta_nw + ot_rate * beta_ot]
+all_pairs[, base_val  := (date_fe + officer_fe +
+            seniority_rank * beta_sr + normal_work * beta_nw) / beta_ot]
+
+## Map officers to integer indices for fast vector accumulation
+unique_officers <- sort(unique(all_pairs$num_emp1))
+n_officers      <- length(unique_officers)
+all_pairs[, oidx := match(num_emp1, unique_officers)]
+
+## Pre-compute per-officer payment if selected (constant within each date)
+all_pairs[, pay_if_selected := fifelse(
+  tot_ot_among > 0L, ot_rate * all_othours / tot_ot_among, 0)]
+
+## Pre-split by date into lightweight lists of vectors.
+## This avoids repeated grouped data.table operations in the inner loop.
+date_splits <- lapply(split(all_pairs, by = "analysis_workdate"), function(d) {
+  list(opp_dist   = d$opp_dist,
+       suppliers  = d$suppliers_interacted,
+       base_util  = d$base_util,
+       base_val   = d$base_val,
+       pay_rate   = d$pay_if_selected,
+       oidx       = d$oidx,
+       ot_rate_v  = d$ot_rate,
+       k          = d$tot_ot_among[1L],
+       n          = nrow(d))
+})
+
+#' ---------------------------------------------------------------------------
 #' RUN SIMULATION (parallel across grid cells)
 #' ---------------------------------------------------------------------------
 
-## set number of iterations
 max_iter <- 200
 
 ## Build grid of (net, cost) pairs
-net_vals  <- c(seq(from = 0, to = 20 * coef(mod_mod)["suppliers_interacted"], length = 20), coef(mod_mod)["suppliers_interacted"])
-cost_vals <- c(seq(from = 0, to = 20 * coef(mod_mod)["opp_dist"], length = 20), coef(mod_mod)["opp_dist"])
+net_vals  <- c(seq(from = 0, to = 20 * coef(mod_mod)["suppliers_interacted"], length = 20),
+               coef(mod_mod)["suppliers_interacted"])
+cost_vals <- c(seq(from = 0, to = 20 * coef(mod_mod)["opp_dist"], length = 20),
+               coef(mod_mod)["opp_dist"])
 grid <- expand.grid(net = net_vals, cost = cost_vals)
-log_message(paste0("Starting informal trade simulation: ", nrow(grid), " grid cells x ", max_iter, " iterations"))
 
-## Slim down to needed columns
-keep_cols <- c("num_emp1", "analysis_workdate", "ot_rate", "opp_dist",
-               "suppliers_interacted", "date_fe", "officer_fe",
-               "seniority_rank", "normal_work",
-               "tot_ot_among", "all_othours")
-ap_slim <- all_pairs[, ..keep_cols]
+## Flag the status-quo cell (true coefficient values) — only this cell needs
+## by-worker output (downstream 07_02 filters to access_cost_mult == 1).
+sq_net  <- unname(coef(mod_mod)["suppliers_interacted"])
+sq_cost <- unname(coef(mod_mod)["opp_dist"])
+grid$is_sq <- (grid$net == sq_net & grid$cost == sq_cost)
+
+log_message(paste0("Starting informal trade simulation: ", nrow(grid),
+                    " grid cells x ", max_iter, " iterations"))
 
 ## Generate per-cell seeds
 cell_seeds <- sample.int(.Machine$integer.max, nrow(grid))
 
-run_one_cell <- function(cell_idx, ap, grid, max_iter, beta_sr, beta_nw, beta_ot) {
+run_one_cell <- function(cell_idx) {
   library(data.table)
-  dt <- copy(ap)
-  n <- nrow(dt)
-  net  <- grid$net[cell_idx]
-  cost <- grid$cost[cell_idx]
+  net      <- grid$net[cell_idx]
+  cost     <- grid$cost[cell_idx]
+  need_bw  <- grid$is_sq[cell_idx]
+  n_dates  <- length(date_splits)
 
-  ## deterministic utility (constant across iterations for this cell)
-  dt[, det_util := opp_dist * cost + suppliers_interacted * net + date_fe + officer_fe +
-              seniority_rank * beta_sr + normal_work * beta_nw + ot_rate * beta_ot]
+  ## Precompute grid-specific det_util per date (constant across iterations)
+  det_utils <- lapply(date_splits, function(ds) {
+    ds$opp_dist * cost + ds$suppliers * net + ds$base_util
+  })
 
   res_list <- vector("list", max_iter)
-  bw_list  <- vector("list", max_iter)
+  if (need_bw) bw_list <- vector("list", max_iter)
 
   for (iter in seq_len(max_iter)) {
-    dt[, true_utility := det_util + rlogis(n)]
-    dt[, sim_work := frank(-true_utility, ties.method = "random") <= tot_ot_among, by = "analysis_workdate"]
-    dt[, sim_win_wage := ot_rate]
+    total_value <- 0
+    total_wage  <- 0
+    ot_count    <- integer(n_officers)
 
-    dt[, true_valuation := (true_utility -
-                (ot_rate * beta_ot + opp_dist * cost + suppliers_interacted * net)) / beta_ot]
+    ## By-worker accumulators (only when needed)
+    if (need_bw) {
+      surplus_acc <- numeric(n_officers)
+      pay_acc     <- numeric(n_officers)
+      wage_max    <- rep(-Inf, n_officers)
+      wage_min    <- rep( Inf, n_officers)
+      wage_sum    <- numeric(n_officers)
+      wage_n      <- integer(n_officers)
+    }
 
-    dt[, sim_value := sim_work * true_valuation]
-    dt[, sim_payment := fifelse(tot_ot_among > 0L, sim_win_wage * sim_work * all_othours / tot_ot_among, 0)]
-    dt[, worker_surplus := sim_work * true_valuation]
+    for (d in seq_len(n_dates)) {
+      ds <- date_splits[[d]]
+      k  <- ds$k
+      if (k == 0L) next
 
-    byemp <- dt[, .(ot_tot = sum(sim_work)), by = "num_emp1"]
-    setorder(byemp, "ot_tot", "num_emp1")
-    byemp[, position := (1:.N) / .N]
-    byemp[, cum_ot := cumsum(ot_tot) / sum(ot_tot)]
-    byemp[, is_90th := position >= 0.9 & shift(position) < 0.9]
-    stopifnot(nrow(byemp[is_90th == TRUE]) == 1)
+      shock   <- rlogis(ds$n)
+      utility <- det_utils[[d]] + shock
+      val     <- ds$base_val + shock / beta_ot
 
-    res_list[[iter]] <- data.table(network_reduction = net, access_cost = cost, sim_num = iter,
-                                   worker_value = sum(dt$sim_value),
-                                   worker_surplus = sum(dt$worker_surplus),
-                                   wage_bill = sum(dt$sim_payment),
-                                   share_top10 = 1 - byemp[is_90th == TRUE]$cum_ot[1])
-    bw_list[[iter]] <- dt[sim_work == TRUE, .(network_reduction = net, access_cost = cost, sim_num = iter,
-                                               total_ot = sum(sim_work),
-                                               worker_surplus = sum(worker_surplus),
-                                               total_ot_pay = sum(sim_payment),
-                                               max_win_wage = max(sim_win_wage),
-                                               min_win_wage = min(sim_win_wage),
-                                               avg_win_wage = mean(sim_win_wage)),
-                          by = "num_emp1"]
+      ## Select top-k officers by utility (replaces grouped frank)
+      sel     <- order(utility, decreasing = TRUE)[seq_len(min(k, ds$n))]
+      val_sel <- val[sel]
+
+      total_value <- total_value + sum(val_sel)
+      total_wage  <- total_wage  + sum(ds$pay_rate[sel])
+
+      ## Accumulate OT counts per officer
+      oids <- ds$oidx[sel]
+      for (s in seq_along(oids)) {
+        ot_count[oids[s]] <- ot_count[oids[s]] + 1L
+      }
+
+      ## Detailed by-worker stats only for status-quo cell
+      if (need_bw) {
+        for (s in seq_along(oids)) {
+          o <- oids[s]
+          surplus_acc[o] <- surplus_acc[o] + val_sel[s]
+          pay_acc[o]     <- pay_acc[o]     + ds$pay_rate[sel[s]]
+          w <- ds$ot_rate_v[sel[s]]
+          if (w > wage_max[o]) wage_max[o] <- w
+          if (w < wage_min[o]) wage_min[o] <- w
+          wage_sum[o] <- wage_sum[o] + w
+          wage_n[o]   <- wage_n[o]   + 1L
+        }
+      }
+    }
+
+    ## Inequality: OT share held by top 10% of officers
+    sorted_ot <- sort(ot_count)
+    sum_ot    <- sum(sorted_ot)
+    if (sum_ot > 0) {
+      pos      <- seq_len(n_officers) / n_officers
+      prev_pos <- c(0, pos[-n_officers])
+      crossing <- which(pos >= 0.9 & prev_pos < 0.9)[1L]
+      share_top10 <- 1 - sum(sorted_ot[seq_len(crossing)]) / sum_ot
+    } else {
+      share_top10 <- 0
+    }
+
+    res_list[[iter]] <- data.table(
+      network_reduction = net, access_cost = cost, sim_num = iter,
+      worker_value = total_value, worker_surplus = total_value,
+      wage_bill = total_wage, share_top10 = share_top10)
+
+    if (need_bw) {
+      active <- which(ot_count > 0L)
+      bw_list[[iter]] <- data.table(
+        num_emp1 = unique_officers[active],
+        network_reduction = net, access_cost = cost, sim_num = iter,
+        total_ot = ot_count[active],
+        worker_surplus = surplus_acc[active],
+        total_ot_pay = pay_acc[active],
+        max_win_wage = wage_max[active],
+        min_win_wage = wage_min[active],
+        avg_win_wage = wage_sum[active] / wage_n[active])
+    }
   }
 
-  list(res = rbindlist(res_list), res_bw = rbindlist(bw_list))
+  if (need_bw) {
+    list(res = rbindlist(res_list), res_bw = rbindlist(bw_list))
+  } else {
+    list(res = rbindlist(res_list), res_bw = NULL)
+  }
 }
 
 n_cores <- min(detectCores() - 1, 10)
 log_message(paste0("Running on ", n_cores, " cores"))
 
 cl <- makeCluster(n_cores)
-clusterExport(cl, c("ap_slim", "grid", "max_iter", "beta_sr", "beta_nw", "beta_ot",
-                     "run_one_cell", "cell_seeds"), envir = environment())
+clusterExport(cl, c("date_splits", "grid", "max_iter", "beta_ot",
+                     "n_officers", "unique_officers", "cell_seeds",
+                     "run_one_cell"), envir = environment())
+clusterEvalQ(cl, library(data.table))
 
 out <- parLapply(cl, seq_len(nrow(grid)), function(i) {
   set.seed(cell_seeds[i])
-  run_one_cell(i, ap_slim, grid, max_iter, beta_sr, beta_nw, beta_ot)
+  run_one_cell(i)
 })
 
 stopCluster(cl)
 log_message("Parallel run complete, collecting results")
 
-results         <- rbindlist(lapply(out, `[[`, "res"))
-results_byworker <- rbindlist(lapply(out, `[[`, "res_bw"))
-rm(out); gc()
+results          <- rbindlist(lapply(out, `[[`, "res"))
+bw_parts         <- Filter(Negate(is.null), lapply(out, `[[`, "res_bw"))
+results_byworker <- rbindlist(bw_parts)
+rm(out, bw_parts); gc()
 
 #' ---------------------------------------------------------------------------
 #' SAVE RESULTS

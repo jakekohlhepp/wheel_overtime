@@ -59,12 +59,15 @@ all_pairs <- all_pairs[!is.na(officer_fe), ]
 #' IMPORT SIMULATION RESULTS (AGGREGATE)
 #' -----------------------------------------------------------------------------
 
-## Status quo (informal trading)
+## Estimated coefficient values — used to identify the status-quo grid cell
+sq_net  <- unname(coef(mod_mod)["suppliers_interacted"])
+sq_cost <- unname(coef(mod_mod)["opp_dist"])
+
+## Status quo (informal trading) — filter to the grid cell with estimated params
 status_quo <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal.rds"))
 status_quo[, worker_value := worker_value * avg_ot_hours]
-status_quo <- status_quo[access_cost_mult == 1, ]
+status_quo <- status_quo[network_reduction == sq_net & access_cost == sq_cost, ]
 status_quo[, worker_surplus := worker_surplus * avg_ot_hours]
-status_quo[, access_cost_mult := NULL]
 status_quo_sum <- status_quo[, .(mean_ineq = mean(share_top10),
                                  mean_allocative = mean(worker_value),
                                  mean_wage_bill = mean(wage_bill),
@@ -126,21 +129,58 @@ ggsave(file.path(CONFIG$figures_dir, "07_02_uniformwages_bydate.png"), width = 1
 #' EQUITY-EFFICIENCY FRONTIER
 #' -----------------------------------------------------------------------------
 
-ggplot(data = managers_val_sum[, c("mean_surplus", "mean_ineq")], aes(x = mean_surplus, y = mean_ineq)) +
-  geom_line(linewidth = 2) +
-  annotate("point", x = auctions_sum$mean_allocative, y = auctions_sum$mean_ineq, colour = "blue", size = 3) +
-  annotate("text", x = auctions_sum$mean_allocative - 700000, y = auctions_sum$mean_ineq, colour = "blue", label = "Uniform-Wage Auction", size = 20 / .pt) +
-  annotate("point", x = auctions_dev_sum$mean_allocative, y = auctions_dev_sum$mean_ineq, colour = "darkgreen", size = 3) +
-  annotate("text", x = auctions_dev_sum$mean_allocative - 800000, y = -0.005 + auctions_dev_sum$mean_ineq, colour = "darkgreen", label = "Uniform-Markdown Auction", size = 20 / .pt) +
-  annotate("point", x = status_quo_sum$mean_allocative, y = status_quo_sum$mean_ineq, colour = "red", size = 3) +
-  annotate("text", x = status_quo_sum$mean_allocative - 500000, y = 0.0025 + status_quo_sum$mean_ineq, colour = "red", label = "Informal Trade", size = 20 / .pt) +
-  xlab("Allocative Efficiency ($)") + ylab("Overtime Share of Top 10%") +
-  theme_bw() +
-  scale_x_continuous(labels = function(l) { paste0(round(l / 1e6, 2), "m") }) +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 30), axis.text = element_text(size = 15),
-        legend.title = element_text(size = 15), legend.text = element_text(size = 15))
-ggsave(file.path(CONFIG$figures_dir, "07_02_equity_efficiency.png"), width = 12, height = 8, units = "in")
+## Bundle the three scenario points into a tidy data frame so ggplot handles
+## colors, shapes, and the legend automatically — no more hardcoded offsets.
+scenario_pts <- data.frame(
+  mean_allocative = c(auctions_sum$mean_allocative,
+                      auctions_dev_sum$mean_allocative,
+                      status_quo_sum$mean_allocative),
+  mean_ineq       = c(auctions_sum$mean_ineq,
+                      auctions_dev_sum$mean_ineq,
+                      status_quo_sum$mean_ineq),
+  label           = c("Uniform-Wage Auction",
+                      "Uniform-Markdown Auction",
+                      "Informal Trade")
+)
+
+scenario_colors <- c(
+  "Uniform-Wage Auction"     = "#2166ac",   # blue
+  "Uniform-Markdown Auction" = "#1a9641",   # green
+  "Informal Trade"           = "#d73027"    # red
+)
+
+ggplot() +
+  ## frontier curve — thin, grey, behind the points
+  geom_line(data = managers_val_sum[, c("mean_surplus", "mean_ineq")],
+            aes(x = mean_surplus, y = mean_ineq),
+            colour = "grey40", linewidth = 1, linetype = "solid") +
+  ## scenario points — sized and colored by scenario
+  geom_point(data = scenario_pts,
+             aes(x = mean_allocative, y = mean_ineq,
+                 colour = label, fill = label),
+             shape = 21, size = 5, stroke = 1.2) +
+  ## scenario labels — offset above each point, matched color
+  geom_text(data = scenario_pts,
+            aes(x = mean_allocative, y = mean_ineq,
+                label = label, colour = label),
+            vjust = -1.1, size = 5, fontface = "bold", show.legend = FALSE) +
+  scale_colour_manual(values = scenario_colors, name = NULL) +
+  scale_fill_manual(values = scenario_colors, name = NULL) +
+  scale_x_continuous(labels = function(l) paste0(round(l / 1e6, 2), "m"),
+                     expand = expansion(mult = c(0.05, 0.08))) +
+  scale_y_continuous(expand = expansion(mult = c(0.05, 0.12))) +
+  xlab("Allocative Efficiency ($)") +
+  ylab("Overtime Share of Top 10%") +
+  theme_bw(base_size = 16) +
+  theme(
+    panel.grid.major  = element_blank(),
+    panel.grid.minor  = element_blank(),
+    axis.title        = element_text(size = 18),
+    axis.text         = element_text(size = 14),
+    legend.position   = "none"   # labels on plot are sufficient
+  )
+ggsave(file.path(CONFIG$figures_dir, "07_02_equity_efficiency.png"),
+       width = 10, height = 7, units = "in", dpi = 300)
 
 ## Differences between random and max
 print(managers_val_sum[savy_num == 0]$mean_surplus - auctions_sum$mean_allocative)
@@ -241,10 +281,12 @@ kable(fortable[, .SD, .SDcols = c(1, 8:13)], "latex", align = "c", booktabs = TR
 #' INDIVIDUAL WINNERS AND LOSERS
 #' -----------------------------------------------------------------------------
 
+## By-worker data only contains the status-quo cell (06_04 optimization),
+## so no grid filter needed here.
 status_quo_byemp <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal_byworker.rds"))
-status_quo_byemp_sum <- status_quo_byemp[access_cost_mult == 1, .(s_surplus = mean(worker_surplus * avg_ot_hours),
-                                                                    s_otpay = mean(total_ot_pay),
-                                                                    s_totalot = mean(total_ot)), by = "num_emp1"]
+status_quo_byemp_sum <- status_quo_byemp[, .(s_surplus = mean(worker_surplus * avg_ot_hours),
+                                              s_otpay = mean(total_ot_pay),
+                                              s_totalot = mean(total_ot)), by = "num_emp1"]
 
 auction_dev_byemp <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_dev_byworker.rds"))
 auction_dev_byemp_sum <- auction_dev_byemp[, .(m_surplus = mean(worker_surplus * avg_ot_hours),
@@ -346,38 +388,42 @@ kable(cartel, "latex", align = "c", booktabs = TRUE, linesep = c(""), escape = F
 #' -----------------------------------------------------------------------------
 #' ACCESS COST ROBUSTNESS
 #' -----------------------------------------------------------------------------
+#' The simulation grid varies network_reduction and access_cost independently.
+#' For the robustness plot we take a 1D slice: hold network_reduction at its
+#' estimated value and sweep access_cost across the grid, converting to a
+#' multiplier relative to the estimated coefficient for the x-axis.
 
-status_quo <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal.rds"))
-status_quo[, worker_value := worker_value * avg_ot_hours]
-status_quo[, worker_surplus := worker_surplus * avg_ot_hours]
-status_quo_sum <- status_quo[, .(mean_ineq = mean(share_top10),
-                                 mean_allocative = mean(worker_value),
-                                 mean_wage_bill = mean(wage_bill),
-                                 mean_workersurplus = mean(worker_surplus)), by = "access_cost_mult"]
+## Helper: load sim results, scale to hours, take the network-fixed slice,
+## and summarize by access_cost multiplier.
+load_robustness_slice <- function(path, sq_net, sq_cost) {
+  dt <- readRDS(path)
+  dt[, worker_value   := worker_value   * avg_ot_hours]
+  dt[, worker_surplus := worker_surplus * avg_ot_hours]
+  ## Hold network_reduction at estimated value, sweep access_cost
+  slice <- dt[network_reduction == sq_net,
+              .(mean_ineq          = mean(share_top10),
+                mean_allocative    = mean(worker_value),
+                mean_wage_bill     = mean(wage_bill),
+                mean_workersurplus = mean(worker_surplus)),
+              by = "access_cost"]
+  slice[, access_cost_mult := access_cost / sq_cost]
+  slice
+}
 
-status_quo_reverse <- readRDS(file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds"))
-status_quo_reverse[, worker_value := worker_value * avg_ot_hours]
-status_quo_reverse[, worker_surplus := worker_surplus * avg_ot_hours]
-status_quo_reverse_sum <- status_quo_reverse[, .(mean_ineq = mean(share_top10),
-                                                  mean_allocative = mean(worker_value),
-                                                  mean_wage_bill = mean(wage_bill),
-                                                  mean_workersurplus = mean(worker_surplus)), by = "access_cost_mult"]
+status_quo_rob      <- load_robustness_slice(
+  file.path(CONFIG$data_dir, "06_04_sim_informal.rds"), sq_net, sq_cost)
+status_quo_rev_rob  <- load_robustness_slice(
+  file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds"), sq_net, sq_cost)
+status_quo_perf_rob <- load_robustness_slice(
+  file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds"), sq_net, sq_cost)
 
-status_quo_perfect <- readRDS(file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds"))
-status_quo_perfect[, worker_value := worker_value * avg_ot_hours]
-status_quo_perfect[, worker_surplus := worker_surplus * avg_ot_hours]
-status_quo_perfect_sum <- status_quo_perfect[, .(mean_ineq = mean(share_top10),
-                                                  mean_allocative = mean(worker_value),
-                                                  mean_wage_bill = mean(wage_bill),
-                                                  mean_workersurplus = mean(worker_surplus)), by = "access_cost_mult"]
+status_quo_rob[,      Regime := "Status Quo"]
+status_quo_rev_rob[,  Regime := "Negative"]
+status_quo_perf_rob[, Regime := "Positive"]
 
-status_quo_perfect_sum[, type := "Positive"]
-status_quo_reverse_sum[, type := "Negative"]
-status_quo_sum[, type := "Status Quo"]
-together <- rbind(status_quo_sum, status_quo_reverse_sum, status_quo_perfect_sum)
+together <- rbind(status_quo_rob, status_quo_rev_rob, status_quo_perf_rob)
 together[, mean_allocative := (mean_allocative - managers_val_sum[savy_num == 0]$mean_surplus) /
            (auctions_sum$mean_allocative - managers_val_sum[savy_num == 0]$mean_surplus)]
-setnames(together, "type", "Regime")
 
 ggplot(data = together, aes(x = access_cost_mult, y = mean_allocative, color = Regime)) +
   geom_line(size = 1) + geom_point(size = 2) +
