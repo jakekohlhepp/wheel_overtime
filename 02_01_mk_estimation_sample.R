@@ -127,7 +127,10 @@ injury[, injured := 1]
 ## Flag FMLA and bereavement from variation descriptions
 raw_data[, family_leave := str_detect(VARIATION_DESCRIPTION, "FML") | str_detect(VARIATION_DESCRIPTION, "FAMILY")]
 raw_data[, bereave := str_detect(VARIATION_DESCRIPTION, "BEREAVEMENT")]
-raw_data <- raw_data[, .(family_leave = max(family_leave), bereave = max(bereave)),
+raw_data <- raw_data[, .(
+  family_leave = as.integer(any(family_leave, na.rm = TRUE)),
+  bereave = as.integer(any(bereave, na.rm = TRUE))
+),
                      by = c("EMPLOYEE_NAME", "WORK_DATE")]
 raw_data[, analysis_workdate := ymd(WORK_DATE)]
 raw_data[, num_emp1 := as.integer(gsub(CONFIG$employee_name_pattern, "", EMPLOYEE_NAME))]
@@ -139,6 +142,12 @@ raw_data <- merge(raw_data,
 all_pairs <- merge(all_pairs,
                    raw_data[, c("num_emp1", "analysis_workdate", "bereave", "family_leave", "injured")],
                    by = c("num_emp1", "analysis_workdate"), all.x = TRUE)
+
+for (col in c("bereave", "family_leave", "injured")) {
+  all_pairs[is.na(get(col)), (col) := 0L]
+  all_pairs[, (col) := as.integer(get(col))]
+  stopifnot(all(all_pairs[[col]] %in% c(0L, 1L)))
+}
 
 #' -----------------------------------------------------------------------------
 #' SAVE OUTPUT

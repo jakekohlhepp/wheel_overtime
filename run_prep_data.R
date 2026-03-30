@@ -20,9 +20,9 @@ ensure_directory(CONFIG$data_dir)
 ensure_directory(CONFIG$output_dir)
 
 # Pipeline step toggles
-RUN_WEATHER       <- TRUE   ## 01_01: weather CSV → weather_daily.dta
-RUN_HOLIDAYS      <- TRUE   ## 01_02: holidays CSV → holidays.dta
-RUN_RAW_SPLIT     <- TRUE   ## 01_03: split raw .dta into employee/workers_comp/pay
+RUN_WEATHER       <- TRUE   ## 01_01: weather CSV -> weather_daily.rds
+RUN_HOLIDAYS      <- TRUE   ## 01_02: holidays CSV -> holidays.rds
+RUN_RAW_SPLIT     <- TRUE   ## 01_03: split raw .dta into employee/workers_comp/pay .rds
 RUN_EXPAND        <- TRUE   ## 01_04: expand pay to daily panel + merge weather/holidays
 RUN_PRE_NETWORK   <- TRUE   ## 01_05: build exposure matrices for all windows
 RUN_NETWORK       <- TRUE   ## 01_06: network panels (30, 90, 180 day windows)
@@ -50,6 +50,7 @@ run_step <- function(step_name, script, deps, outputs = NULL,
 
     tryCatch({
       source(script, local = env)
+      if (!is.null(outputs)) assert_required_files(outputs)
 
       step_time <- difftime(Sys.time(), step_start, units = "mins")
       message(step_name, " complete (", round(step_time, 2), " minutes)")
@@ -78,19 +79,19 @@ run_step <- function(step_name, script, deps, outputs = NULL,
 #' =============================================================================
 
 # -- Paths used across Phase A steps --
-raw_dta_path     <- file.path(CONFIG$raw_pay_dir, "data", "anonymized_data_073117.dta")
-info_path        <- file.path(CONFIG$output_dir, "list_var_desc.csv")
-weather_csv_path <- file.path(CONFIG$raw_weather_dir, "data", "1834210.csv")
+raw_dta_path      <- file.path(CONFIG$raw_pay_dir, "data", "anonymized_data_073117.dta")
+info_path         <- file.path(CONFIG$output_dir, "list_var_desc.csv")
+weather_csv_path  <- file.path(CONFIG$raw_weather_dir, "data", "1834210.csv")
 holidays_csv_path <- file.path(CONFIG$raw_holidays_dir, "data",
                                "us-federal-holidays-2011-2020.csv")
 
-weather_dta      <- file.path(CONFIG$data_dir, "weather_daily.dta")
-holidays_dta     <- file.path(CONFIG$data_dir, "holidays.dta")
-employee_dta     <- file.path(CONFIG$data_dir, "employee_data.dta")
-workers_dta      <- file.path(CONFIG$data_dir, "workers_comp.dta")
-pay_dta          <- file.path(CONFIG$data_dir, "pay_data.dta")
-working_dta      <- file.path(CONFIG$data_dir, "working_expanded.dta")
-fornetwork_dta   <- file.path(CONFIG$data_dir, "01_04_fornetwork.dta")
+weather_rds     <- file.path(CONFIG$data_dir, "weather_daily.rds")
+holidays_rds    <- file.path(CONFIG$data_dir, "holidays.rds")
+employee_rds    <- file.path(CONFIG$data_dir, "employee_data.rds")
+workers_rds     <- file.path(CONFIG$data_dir, "workers_comp.rds")
+pay_rds         <- file.path(CONFIG$data_dir, "pay_data.rds")
+working_rds     <- file.path(CONFIG$data_dir, "working_expanded.rds")
+fornetwork_rds  <- file.path(CONFIG$data_dir, "01_04_fornetwork.rds")
 
 #' -----------------------------------------------------------------------------
 #' 01_01: Process weather data
@@ -100,7 +101,7 @@ if (RUN_WEATHER) {
   run_step("01_01_process_weather",
            "01_01_process_weather.R",
            deps = c("config.R", "01_01_process_weather.R", weather_csv_path),
-           outputs = weather_dta)
+           outputs = weather_rds)
 }
 
 #' -----------------------------------------------------------------------------
@@ -111,7 +112,7 @@ if (RUN_HOLIDAYS) {
   run_step("01_02_process_holidays",
            "01_02_process_holidays.R",
            deps = c("config.R", "01_02_process_holidays.R", holidays_csv_path),
-           outputs = holidays_dta)
+           outputs = holidays_rds)
 }
 
 #' -----------------------------------------------------------------------------
@@ -122,7 +123,7 @@ if (RUN_RAW_SPLIT) {
   run_step("01_03_mk_working",
            "01_03_mk_working.R",
            deps = c("config.R", "01_03_mk_working.R", raw_dta_path, info_path),
-           outputs = c(employee_dta, workers_dta, pay_dta))
+           outputs = c(employee_rds, workers_rds, pay_rds))
 }
 
 #' -----------------------------------------------------------------------------
@@ -133,9 +134,9 @@ if (RUN_EXPAND) {
   run_step("01_04_mk_expanded_pay",
            "01_04_mk_expanded_pay.R",
            deps = c("config.R", "01_04_mk_expanded_pay.R",
-                    pay_dta, workers_dta, employee_dta,
-                    weather_dta, holidays_dta, raw_dta_path),
-           outputs = c(working_dta, fornetwork_dta))
+                    pay_rds, workers_rds, employee_rds,
+                    weather_rds, holidays_rds, raw_dta_path),
+           outputs = c(working_rds, fornetwork_rds))
 }
 
 #' -----------------------------------------------------------------------------
@@ -150,7 +151,7 @@ if (RUN_PRE_NETWORK) {
   run_step("01_05_mk_pre_network",
            "01_05_mk_pre_network.R",
            deps = c("config.R", "01_05_mk_pre_network.R",
-                    working_dta, pay_dta, fornetwork_dta, employee_dta),
+                    working_rds, pay_rds, fornetwork_rds, employee_rds),
            outputs = pre_net_outputs)
 }
 

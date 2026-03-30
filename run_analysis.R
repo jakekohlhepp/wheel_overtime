@@ -48,6 +48,7 @@ run_step <- function(step_name, script, deps, outputs = NULL,
 
     tryCatch({
       source(script, local = env)
+      if (!is.null(outputs)) assert_required_files(outputs)
 
       step_time <- difftime(Sys.time(), step_start, units = "mins")
       message(step_name, " complete (", round(step_time, 2), " minutes)")
@@ -90,10 +91,37 @@ if (RUN_EST_SAMPLE) {
 #' TIER 3: Descriptive facts and event studies
 #' -----------------------------------------------------------------------------
 
+facts_outputs <- c(
+  file.path(CONFIG$tables_dir, "03_01_summary_stats.tex"),
+  file.path(CONFIG$tables_dir, "03_01_summary_stats_officer.tex"),
+  file.path(CONFIG$tables_dir, "03_01_claim.tex"),
+  file.path(CONFIG$tables_dir, "03_01_nature.tex"),
+  file.path(CONFIG$figures_dir, "03_01_age_dispersion.png"),
+  file.path(CONFIG$figures_dir, "03_01_wheel_turning_oct.png"),
+  file.path(CONFIG$figures_dir, "03_01_wheel_turning_july.png"),
+  file.path(CONFIG$figures_dir, "03_01_wheel_predicts_ot.png"),
+  file.path(CONFIG$figures_dir, "03_01_ot_dipersion_frac.png"),
+  file.path(CONFIG$figures_dir, "03_01_ot_dipersion_count.png"),
+  file.path(CONFIG$figures_dir, "03_01_buyers_sellers_connectedness.png"),
+  file.path(CONFIG$figures_dir, "03_01_zoomed_out_network.png"),
+  file.path(CONFIG$figures_dir, "03_01_zoomed_in_network.png"),
+  file.path(CONFIG$figures_dir, "03_01_zoomed_out_network_centrality.png"),
+  file.path(CONFIG$figures_dir, "03_01_zoomed_in_network_centrality.png"),
+  file.path(CONFIG$figures_dir, "03_01_zoomed_in_network_centrality_18.png"),
+  file.path(CONFIG$figures_dir, "03_01_timevarying_230_20150101.png"),
+  file.path(CONFIG$figures_dir, "03_01_timevarying_230_20150701.png"),
+  file.path(CONFIG$figures_dir, "03_01_timevarying_230_20160101.png"),
+  file.path(CONFIG$figures_dir, "03_01_potential_supplier_hist.png"),
+  file.path(CONFIG$figures_dir, "03_01_potential_supplier_hist_idiosyncratic.png"),
+  file.path(CONFIG$figures_dir, "03_01_potential_supplier_count.png"),
+  file.path(CONFIG$figures_dir, "03_01_relevance_resid.png")
+)
+
 if (RUN_FACTS) {
   run_step("03_01_facts",
            "03_01_facts.R",
-           deps = c("config.R", "03_01_facts.R", est_sample_path))
+           deps = c("config.R", "03_01_facts.R", est_sample_path),
+           outputs = facts_outputs)
 }
 
 if (RUN_FACTS) {
@@ -112,10 +140,20 @@ if (RUN_EVENT_STUDIES) {
     "03_08_own_bereave"
   )
 
+  event_outputs <- list(
+    "03_03_termination_did" = file.path(CONFIG$figures_dir, "03_03_termination_twfe.png"),
+    "03_04_new_hire" = file.path(CONFIG$figures_dir, "03_04_new_hire_twfe.png"),
+    "03_05_fmla" = file.path(CONFIG$figures_dir, "03_05_fmla_twfe.png"),
+    "03_06_own_fmla" = file.path(CONFIG$figures_dir, "03_06_own_fmla.png"),
+    "03_07_bereave" = file.path(CONFIG$figures_dir, "03_07_bereave_twfe.png"),
+    "03_08_own_bereave" = file.path(CONFIG$figures_dir, "03_08_own_bereave_twfe.png")
+  )
+
   for (script_name in event_scripts) {
     script_file <- paste0(script_name, ".R")
     run_step(script_name, script_file,
-             deps = c("config.R", script_file, est_sample_path))
+             deps = c("config.R", script_file, est_sample_path),
+             outputs = event_outputs[[script_name]])
   }
 }
 
@@ -152,10 +190,25 @@ if (RUN_EST_ANALYSIS) {
     "05_05_labor_supply"
   )
 
+  est_analysis_outputs <- list(
+    "05_01_display" = c(
+      file.path(CONFIG$figures_dir, "05_01_officer_fe.png"),
+      file.path(CONFIG$figures_dir, "05_01_date_fe.png")
+    ),
+    "05_02_validate_valuations" = c(
+      file.path(CONFIG$data_dir, "05_02_val_special_events_blank.csv"),
+      file.path(CONFIG$tables_dir, "05_02_top10_fixed_effects.tex"),
+      file.path(CONFIG$tables_dir, "05_02_rain_dow_fe.tex")
+    ),
+    "05_03_cartel_age" = file.path(CONFIG$figures_dir, "05_03_age_valuation.png"),
+    "05_04_decomp_pref_network" = file.path(CONFIG$tables_dir, "05_04_decomp.tex")
+  )
+
   for (script_name in est_analysis_scripts) {
     script_file <- paste0(script_name, ".R")
     run_step(script_name, script_file,
-             deps = c("config.R", script_file, est_sample_path, estimate_path))
+             deps = c("config.R", script_file, est_sample_path, estimate_path),
+             outputs = est_analysis_outputs[[script_name]])
   }
 }
 
@@ -177,10 +230,38 @@ if (RUN_SIMULATIONS) {
     "06_06_sim_informal_perfect"
   )
 
+  sim_outputs <- list(
+    "06_02_sim_random" = c(
+      file.path(CONFIG$data_dir, "06_02_sim_random.rds"),
+      file.path(CONFIG$data_dir, "06_02_sim_random_byworker.rds")
+    ),
+    "06_03_auction_sim" = c(
+      file.path(CONFIG$data_dir, "06_03_sim_auction_dev.rds"),
+      file.path(CONFIG$data_dir, "06_03_sim_auction_dev_markdown.rds"),
+      file.path(CONFIG$data_dir, "06_03_sim_auction_dev_byworker.rds"),
+      file.path(CONFIG$data_dir, "06_03_sim_auction_straight.rds"),
+      file.path(CONFIG$data_dir, "06_03_sim_auction_straight_wage.rds"),
+      file.path(CONFIG$data_dir, "06_03_sim_auction_straight_byworker.rds")
+    ),
+    "06_04_sim_informal" = c(
+      file.path(CONFIG$data_dir, "06_04_sim_informal.rds"),
+      file.path(CONFIG$data_dir, "06_04_sim_informal_byworker.rds")
+    ),
+    "06_05_sim_informal_reverse" = c(
+      file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds"),
+      file.path(CONFIG$data_dir, "06_05_sim_informal_reverse_byworker.rds")
+    ),
+    "06_06_sim_informal_perfect" = c(
+      file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds"),
+      file.path(CONFIG$data_dir, "06_06_sim_informal_perfect_byworker.rds")
+    )
+  )
+
   for (script_name in sim_scripts) {
     script_file <- paste0(script_name, ".R")
     run_step(script_name, script_file,
-             deps = c("config.R", script_file, est_sample_path, estimate_path))
+             deps = c("config.R", script_file, est_sample_path, estimate_path),
+             outputs = sim_outputs[[script_name]])
   }
 }
 
@@ -189,9 +270,16 @@ if (RUN_SIMULATIONS) {
 #' -----------------------------------------------------------------------------
 
 if (RUN_SIM_COMPARE) {
+  heatmap_outputs <- c(
+    file.path(CONFIG$figures_dir, "07_01_heatmap_continuous.png"),
+    file.path(CONFIG$figures_dir, "07_01_heatmap.png"),
+    file.path(CONFIG$figures_dir, "07_01_heatmap_less_granular.png")
+  )
+
   run_step("07_01_heatmap",
            "07_01_heatmap.R",
-           deps = c("config.R", "07_01_heatmap.R", est_sample_path, estimate_path))
+           deps = c("config.R", "07_01_heatmap.R", est_sample_path, estimate_path),
+           outputs = heatmap_outputs)
 
   run_step("07_02_compare_sims",
            "07_02_compare_sims.R",
