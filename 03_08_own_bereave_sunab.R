@@ -1,0 +1,85 @@
+#' =============================================================================
+#' BEREAVEMENT EVENT STUDY - Sun & Abraham (2021) Interaction-Weighted Estimator (Own Effects)
+#' =============================================================================
+#' Input:  data/02_01_estimation_sample.rds
+#' Output: out/figures/03_08_own_bereave_sunab.png
+#' =============================================================================
+
+source('config.R')
+source('utils/logging.R')
+log_init("03_08_own_bereave_sunab.R")
+
+#' ---------------------------------------------------------------------------
+#' LOAD PACKAGES
+#' ---------------------------------------------------------------------------
+
+library('fixest')
+library('data.table')
+library('ggplot2')
+
+#' ---------------------------------------------------------------------------
+#' LOAD DATA
+#' ---------------------------------------------------------------------------
+
+log_message("Loading estimation sample")
+all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
+
+#' ---------------------------------------------------------------------------
+#' IDENTIFY BEREAVEMENT EVENTS
+#' ---------------------------------------------------------------------------
+
+log_message("Identifying bereavement events for own-effect analysis")
+all_pairs[is.na(bereave), bereave := 0]
+all_pairs[bereave == 1, first_time := min(analysis_workdate), by = "num_emp1"]
+all_pairs[bereave == 1, is_leave := first_time == analysis_workdate]
+all_pairs[bereave == 0, is_leave := 0]
+all_pairs[, does_leave := max(is_leave), by = "num_emp1"]
+
+#' ---------------------------------------------------------------------------
+#' ASSIGN OWN TREATMENT
+#' ---------------------------------------------------------------------------
+
+all_pairs[, treat := 0]
+all_pairs[is_leave == 1, treat := 1]
+all_pairs[treat == 1, first_treat := analysis_workdate]
+all_pairs[, first_treat := ifelse(max(treat) == 1, min(first_treat, na.rm = TRUE), Inf), by = "num_emp1"]
+all_pairs[, rel_time := analysis_workdate - first_treat]
+
+#' ---------------------------------------------------------------------------
+#' PREPARE DATA FOR SUN & ABRAHAM ESTIMATOR
+#' ---------------------------------------------------------------------------
+
+log_message("Preparing data for Sun & Abraham estimator")
+est_data <- copy(all_pairs)
+
+## sunab with daily data creates a cohort x period interaction matrix that is
+## computationally infeasible. Collapse to weekly frequency.
+est_data[, week := as.numeric(floor((analysis_workdate - min(analysis_workdate)) / 7))]
+est_data[, cohort_week := as.numeric(floor((first_treat - min(analysis_workdate)) / 7))]
+est_data[is.infinite(first_treat), cohort_week := 10000]
+
+weekly <- est_data[, .(wheel_degree = mean(wheel_degree, na.rm = TRUE),
+                        treat = max(treat)),
+                    by = .(num_emp1, week, cohort_week)]
+
+#' ---------------------------------------------------------------------------
+#' ESTIMATE AND PLOT
+#' ---------------------------------------------------------------------------
+
+log_message("Estimating Sun & Abraham models")
+
+## Pooled treatment effect (on weekly data)
+sa_pool <- feols(wheel_degree ~ treat | num_emp1 + week, data = weekly, cluster = ~num_emp1)
+summary(sa_pool)
+
+## Event study using Sun & Abraham interaction-weighted estimator
+sa_es <- feols(wheel_degree ~ sunab(cohort_week, week, ref.p = c(0, .F)) | num_emp1 + week, data = weekly, cluster = ~num_emp1)
+
+ensure_directory(CONFIG$figures_dir)
+png(file.path(CONFIG$figures_dir, "03_08_own_bereave_sunab.png"), width = 900, height = 500)
+iplot(sa_es, main = "", xlab = "Time to Bereavement (Weeks)", ylab = "Potential Supplier Count",
+      drop = "([5-9]\\d{0}|[1-9]\\d{1,})", lab.fit = "simple")
+dev.off()
+
+log_message("03_08_own_bereave_sunab.R completed successfully")
+log_complete(success = TRUE)

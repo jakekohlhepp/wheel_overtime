@@ -21,6 +21,7 @@ ensure_directory(CONFIG$figures_dir)
 RUN_EST_SAMPLE    <- TRUE
 RUN_FACTS         <- TRUE
 RUN_EVENT_STUDIES <- TRUE
+RUN_MODERN_DID    <- TRUE
 RUN_ESTIMATION    <- TRUE
 RUN_EST_ANALYSIS  <- TRUE
 RUN_SIMULATIONS   <- TRUE
@@ -93,7 +94,6 @@ if (RUN_EST_SAMPLE) {
 
 facts_outputs <- c(
   file.path(CONFIG$tables_dir, "03_01_summary_stats.tex"),
-  file.path(CONFIG$tables_dir, "03_01_summary_stats_officer.tex"),
   file.path(CONFIG$tables_dir, "03_01_claim.tex"),
   file.path(CONFIG$tables_dir, "03_01_nature.tex"),
   file.path(CONFIG$figures_dir, "03_01_age_dispersion.png"),
@@ -158,6 +158,38 @@ if (RUN_EVENT_STUDIES) {
 }
 
 #' -----------------------------------------------------------------------------
+#' TIER 3b: Modern staggered DiD estimators (did2s, Sun & Abraham, Callaway & Sant'Anna)
+#' -----------------------------------------------------------------------------
+
+if (RUN_MODERN_DID) {
+  modern_suffixes <- c("did2s", "sunab", "cs")
+  modern_bases <- c(
+    "03_03_termination",
+    "03_04_new_hire",
+    "03_05_fmla",
+    "03_06_own_fmla",
+    "03_07_bereave",
+    "03_08_own_bereave"
+  )
+
+  for (base in modern_bases) {
+    for (suffix in modern_suffixes) {
+      script_name <- paste0(base, "_", suffix)
+      script_file <- paste0(script_name, ".R")
+      output_file <- file.path(CONFIG$figures_dir, paste0(script_name, ".png"))
+      run_step(script_name, script_file,
+               deps = c("config.R", script_file, est_sample_path),
+               outputs = output_file)
+    }
+  }
+
+  ## Diagnostic comparison across all estimators
+  run_step("03_09_staggered_did_diagnostic",
+           "03_09_staggered_did_diagnostic.R",
+           deps = c("config.R", "03_09_staggered_did_diagnostic.R", est_sample_path))
+}
+
+#' -----------------------------------------------------------------------------
 #' TIER 4: Main estimation
 #' -----------------------------------------------------------------------------
 
@@ -185,7 +217,7 @@ if (RUN_EST_ANALYSIS) {
   est_analysis_scripts <- c(
     "05_01_display",
     "05_02_validate_valuations",
-    "05_03_cartel_age",
+    "05_03_cartel_demographics",
     "05_04_decomp_pref_network",
     "05_05_labor_supply"
   )
@@ -200,7 +232,11 @@ if (RUN_EST_ANALYSIS) {
       file.path(CONFIG$tables_dir, "05_02_top10_fixed_effects.tex"),
       file.path(CONFIG$tables_dir, "05_02_rain_dow_fe.tex")
     ),
-    "05_03_cartel_age" = file.path(CONFIG$figures_dir, "05_03_age_valuation.png"),
+    "05_03_cartel_demographics" = c(
+      file.path(CONFIG$tables_dir, "05_03_cartel.tex"),
+      file.path(CONFIG$figures_dir, "05_03_age_valuation.png"),
+      file.path(CONFIG$figures_dir, "05_03_family_leave_valuation.png")
+    ),
     "05_04_decomp_pref_network" = file.path(CONFIG$tables_dir, "05_04_decomp.tex")
   )
 
