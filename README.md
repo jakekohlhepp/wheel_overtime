@@ -23,55 +23,57 @@ source("run_analysis.R")
 
 ```
 wheel_code/
-├── config.R                          # Centralized configuration (paths, parameters)
-├── utils/logging.R                   # Logging and conditional re-run logic
-│
-├── run_prep_data.R                   # Orchestrator: data preparation (01_01 -- 01_07)
-├── 01_01_process_weather.R           # Weather CSV → .dta
-├── 01_02_process_holidays.R          # Holidays CSV → .dta
-├── 01_03_mk_working.R               # Split raw data into employee/workers_comp/pay
-├── 01_04_mk_expanded_pay.R           # Expand pay to daily panel + merge weather/holidays
-├── 01_05_mk_pre_network.R            # Build exposure matrices (30/90/180/1000-day windows)
-├── 01_06_mk_network.R                # Network panels (30/90/180-day windows)
-├── 01_07_mk_map.R                    # Enforcement districts map
-│
-├── run_analysis.R                    # Orchestrator: analysis pipeline (02_01 -- 07_02)
-├── 02_01_mk_estimation_sample.R      # Build main estimation sample
-├── 03_01_facts.R                     # Descriptive facts and figures
-├── 03_02_lag_check.R                 # Lag structure validation
-├── 03_03_termination_did.R           # Event study: terminations
-├── 03_04_new_hire.R                  # Event study: new hires
-├── 03_05_fmla.R                      # Event study: peer FMLA leave
-├── 03_06_own_fmla.R                  # Event study: own FMLA leave
-├── 03_07_bereave.R                   # Event study: peer bereavement
-├── 03_08_own_bereave.R               # Event study: own bereavement
-│
-├── 04_01_estimate.R                  # Main logit/probit estimation
-├── 04_02_estimate_many.R             # Time-varying estimates
-├── 05_01_display.R                   # Estimation result figures
-├── 05_02_validate_valuations.R       # Validate against special events
-├── 05_03_cartel_age.R                # Heterogeneity by age/tenure
-├── 05_04_decomp_pref_network.R       # Preference vs. network decomposition
-├── 05_05_labor_supply.R              # Labor supply analysis
-│
-├── 06_01_sim_frontier.R              # Simulation: efficiency-equity frontier
-├── 06_02_sim_random.R                # Simulation: random allocation
-├── 06_03_auction_sim.R               # Simulation: auction mechanisms
-├── 06_04_sim_informal.R              # Simulation: informal trading
-├── 06_05_sim_informal_reverse.R      # Simulation: reverse-seniority trading
-├── 06_06_sim_informal_perfect.R      # Simulation: perfect-information trading
-├── 07_01_heatmap.R                   # Simulation heatmap visualization
-├── 07_02_compare_sims.R              # Cross-simulation comparison
-│
-├── legacy/stata/                     # Original Stata scripts and verification tools
-├── data/                             # Intermediate data files (gitignored)
-├── out/figures/                      # Output figures (gitignored)
-├── out/tables/                       # Output tables (gitignored)
-├── logs/                             # Execution logs (gitignored)
-├── 20170803_payworkers_comp/         # Raw pay/workers comp data (gitignored)
-├── 20190811_weather/                 # Raw weather data (gitignored)
-├── 20190814_fed_holidays/            # Raw holiday data (gitignored)
-└── 20250311_ladot_enforcement_districts/  # District shapefiles (gitignored)
+â”œâ”€â”€ config.R                          # Centralized configuration (paths, parameters)
+â”œâ”€â”€ utils/logging.R                   # Logging and conditional re-run logic
+â”‚
+â”œâ”€â”€ run_prep_data.R                   # Orchestrator: data preparation (01_01 -- 01_07)
+â”œâ”€â”€ 01_01_process_weather.R           # Weather CSV â†’ .dta
+â”œâ”€â”€ 01_02_process_holidays.R          # Holidays CSV â†’ .dta
+â”œâ”€â”€ 01_03_mk_working.R               # Split raw data into employee/workers_comp/pay
+â”œâ”€â”€ 01_04_mk_expanded_pay.R           # Expand pay to daily panel + merge weather/holidays
+â”œâ”€â”€ 01_05_mk_pre_network.R            # Build exposure matrices (30/90/180/1000-day windows)
+â”œâ”€â”€ 01_06_mk_network.R                # Network panels (30/90/180-day windows)
+â”œâ”€â”€ 01_07_mk_map.R                    # Enforcement districts map
+â”‚
+â”œâ”€â”€ run_analysis.R                    # Orchestrator: analysis pipeline (02_01 -- 07_02)
+â”œâ”€â”€ 02_01_mk_estimation_sample.R      # Build main estimation sample
+â”œâ”€â”€ 03_01_facts.R                     # Descriptive facts and figures
+â”œâ”€â”€ 03_02_lag_check.R                 # Lag structure validation
+â”œâ”€â”€ 03_03_termination_did.R           # Event study: terminations
+â”œâ”€â”€ 03_04_new_hire.R                  # Event study: new hires
+â”œâ”€â”€ 03_05_fmla.R                      # Event study: peer FMLA leave
+â”œâ”€â”€ 03_06_own_fmla.R                  # Event study: own FMLA leave
+â”œâ”€â”€ 03_07_bereave.R                   # Event study: peer bereavement
+â”œâ”€â”€ 03_08_own_bereave.R               # Event study: own bereavement
+â”‚
+â”œâ”€â”€ 04_01_estimate.R                  # Main logit/probit estimation
+â”œâ”€â”€ 04_02_estimate_many.R             # Time-varying estimates
+â”œâ”€â”€ 05_01_display.R                   # Estimation result figures
+â”œâ”€â”€ 05_02_validate_valuations.R       # Validate against special events
+â”œâ”€â”€ 05_03_cartel_age.R                # Heterogeneity by age/tenure
+â”œâ”€â”€ 05_04_decomp_pref_network.R       # Preference vs. network decomposition
+â”œâ”€â”€ 05_05_labor_supply.R              # Labor supply analysis
+â”‚
+â”œâ”€â”€ 06_01_sim_frontier.R              # Simulation: efficiency-equity frontier
+â”œâ”€â”€ 06_02_sim_random.R                # Simulation: random allocation
+â”œâ”€â”€ 06_03_auction_sim.R               # Simulation: auction mechanisms
+â”œâ”€â”€ 06_04_sim_informal.R              # Simulation: informal trading
+â”œâ”€â”€ 06_05_sim_informal_reverse.R      # Simulation: reverse-seniority trading
+â”œâ”€â”€ 06_06_sim_informal_perfect.R      # Simulation: perfect-information trading
+â”œâ”€â”€ 07_01_heatmap.R                   # Simulation heatmap visualization
+â”œâ”€â”€ 07_02_compare_sims.R              # Cross-simulation comparison
+â”‚
+â”œâ”€â”€ legacy/stata/                     # Original Stata scripts and verification tools
+├── legacy/did2s/                     # Gardner (2022) did2s scripts (vcov bug with fixest 0.11.x)
+├── legacy/cs/                        # Callaway & Sant'Anna (2021) scripts (too slow for daily panels)
+â”œâ”€â”€ data/                             # Intermediate data files (gitignored)
+â”œâ”€â”€ out/figures/                      # Output figures (gitignored)
+â”œâ”€â”€ out/tables/                       # Output tables (gitignored)
+â”œâ”€â”€ logs/                             # Execution logs (gitignored)
+â”œâ”€â”€ 20170803_payworkers_comp/         # Raw pay/workers comp data (gitignored)
+â”œâ”€â”€ 20190811_weather/                 # Raw weather data (gitignored)
+â”œâ”€â”€ 20190814_fed_holidays/            # Raw holiday data (gitignored)
+â””â”€â”€ 20250311_ladot_enforcement_districts/  # District shapefiles (gitignored)
 ```
 
 ## Pipeline
@@ -99,7 +101,8 @@ Run via `source("run_analysis.R")`.
 | Tier | Scripts | Depends On |
 |------|---------|------------|
 | 2 | `02_01_mk_estimation_sample.R` | 01_06 output |
-| 3 | `03_01_facts.R`, `03_02` -- `03_08` (event studies) | Tier 2 |
+| 3 | `03_01_facts.R`, `03_02` -- `03_08` (TWFE event studies) | Tier 2 |
+| 3b | `03_03` -- `03_08` sunab (Sun & Abraham 2021), `03_09` diagnostic | Tier 2 |
 | 4 | `04_01_estimate.R` (main estimation) | Tier 2 |
 | 5 | `05_01` -- `05_05` (estimation analysis) | Tier 4 |
 | 6 | `06_01` -- `06_06` (simulations) | Tier 4 |
@@ -147,3 +150,4 @@ Raw data directories are date-stamped (`YYYYMMDD_description/`) and gitignored. 
 
 - R >= 4.3.0
 - Key packages: `data.table`, `fixest`, `circular`, `ClusTorus`, `sf`, `osmdata`, `ggplot2`, `lubridate`, `stringr`, `almanac`, `tidygeocoder`, `haven`
+

@@ -158,11 +158,16 @@ if (RUN_EVENT_STUDIES) {
 }
 
 #' -----------------------------------------------------------------------------
-#' TIER 3b: Modern staggered DiD estimators (did2s, Sun & Abraham, Callaway & Sant'Anna)
+#' TIER 3b: Modern staggered DiD — Sun & Abraham (2021)
 #' -----------------------------------------------------------------------------
+#' Uses fixest::sunab() with weekly aggregation to avoid the infeasible
+#' cohort x period matrix that arises from daily data.
+#'
+#' Legacy estimators (moved to legacy/ — not run by this pipeline):
+#'   - Callaway & Sant'Anna (2021): too slow and crash-prone with daily panels
+#'   - did2s / Gardner (2022): vcov bug in did2s 1.0.2 + fixest 0.11.x
 
 if (RUN_MODERN_DID) {
-  modern_suffixes <- c("did2s", "sunab", "cs")
   modern_bases <- c(
     "03_03_termination",
     "03_04_new_hire",
@@ -173,17 +178,15 @@ if (RUN_MODERN_DID) {
   )
 
   for (base in modern_bases) {
-    for (suffix in modern_suffixes) {
-      script_name <- paste0(base, "_", suffix)
-      script_file <- paste0(script_name, ".R")
-      output_file <- file.path(CONFIG$figures_dir, paste0(script_name, ".png"))
-      run_step(script_name, script_file,
-               deps = c("config.R", script_file, est_sample_path),
-               outputs = output_file)
-    }
+    script_name <- paste0(base, "_sunab")
+    script_file <- paste0(script_name, ".R")
+    output_file <- file.path(CONFIG$figures_dir, paste0(script_name, ".png"))
+    run_step(script_name, script_file,
+             deps = c("config.R", script_file, est_sample_path),
+             outputs = output_file)
   }
 
-  ## Diagnostic comparison across all estimators
+  ## Diagnostic comparison: TWFE vs. Sun & Abraham
   run_step("03_09_staggered_did_diagnostic",
            "03_09_staggered_did_diagnostic.R",
            deps = c("config.R", "03_09_staggered_did_diagnostic.R", est_sample_path))

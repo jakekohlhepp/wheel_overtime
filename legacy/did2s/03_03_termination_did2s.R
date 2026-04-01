@@ -72,12 +72,15 @@ log_message("Estimating did2s imputation models")
 est_data <- all_pairs[does_term == 0]
 
 ## Pooled did2s estimate
+## NOTE: Using bootstrap SEs because did2s 1.0.2 analytical vcov is broken
+## with fixest >= 0.11.x (empty vcov matrix). Bootstrap is slower but reliable.
 did2s_pooled <- did2s(est_data,
                       yname = "degree",
                       first_stage = ~ 0 | num_emp1 + analysis_workdate,
                       second_stage = ~ treat,
                       treatment = "treat",
-                      cluster_var = "num_emp1")
+                      cluster_var = "num_emp1",
+                      bootstrap = TRUE, n_bootstraps = 250)
 summary(did2s_pooled)
 
 ## Event study did2s estimate
@@ -86,7 +89,8 @@ did2s_es <- did2s(est_data,
                   first_stage = ~ 0 | num_emp1 + analysis_workdate,
                   second_stage = ~ i(rel_time, ref = c(-1, Inf)),
                   treatment = "treat",
-                  cluster_var = "num_emp1")
+                  cluster_var = "num_emp1",
+                  bootstrap = TRUE, n_bootstraps = 250)
 
 ensure_directory(CONFIG$figures_dir)
 png(file.path(CONFIG$figures_dir, "03_03_termination_did2s.png"), width = 900, height = 500)
