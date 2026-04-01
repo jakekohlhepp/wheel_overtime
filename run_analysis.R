@@ -28,11 +28,27 @@ RUN_SIMULATIONS   <- TRUE
 RUN_SIM_COMPARE   <- TRUE
 
 pipeline_results <- list()
+pipeline_success <- FALSE
+
+emit_status <- function(msg, level = "INFO") {
+  message(msg)
+  log_message(msg, level = level)
+}
+
+log_init("run_analysis.R")
+on.exit({
+  total_time <- as.numeric(difftime(Sys.time(), pipeline_start, units = "mins"))
+  log_pipeline_summary(pipeline_results, pipeline_start,
+                       title = "ANALYSIS PIPELINE SUMMARY")
+  log_complete(success = pipeline_success, duration = total_time)
+}, add = TRUE)
 
 message("\n", strrep("=", 70))
 message("ANALYSIS PIPELINE")
 message(strrep("=", 70))
 message("Start time: ", pipeline_start)
+log_message("ANALYSIS PIPELINE")
+log_message(paste("Start time:", format(pipeline_start, "%Y-%m-%d %H:%M:%S")))
 
 #' -----------------------------------------------------------------------------
 #' Helper: run a single step
@@ -43,33 +59,35 @@ run_step <- function(step_name, script, deps, outputs = NULL,
   message("\n", strrep("-", 70))
   message("STEP: ", step_name)
   message(strrep("-", 70))
+  log_message(paste("STEP:", step_name))
 
   if (needs_rerun(step_name, deps, outputs = outputs)) {
     step_start <- Sys.time()
+    emit_status(paste("Running", step_name))
 
     tryCatch({
       source(script, local = env)
       if (!is.null(outputs)) assert_required_files(outputs)
 
       step_time <- difftime(Sys.time(), step_start, units = "mins")
-      message(step_name, " complete (", round(step_time, 2), " minutes)")
       pipeline_results[[step_name]] <<- list(
         ran = TRUE, success = TRUE, duration = as.numeric(step_time),
         error = NULL, skipped = FALSE
       )
-
+      emit_status(sprintf("%s complete (%.2f minutes)", step_name, as.numeric(step_time)))
     }, error = function(e) {
       pipeline_results[[step_name]] <<- list(
         ran = TRUE, success = FALSE, duration = 0,
         error = e$message, skipped = FALSE
       )
+      emit_status(paste(step_name, "failed:", e$message), level = "ERROR")
       stop(step_name, " failed: ", e$message)
     })
   } else {
-    message(step_name, " skipped (no changes detected)")
     pipeline_results[[step_name]] <<- list(
       ran = FALSE, success = TRUE, duration = 0, error = NULL, skipped = TRUE
     )
+    emit_status(paste(step_name, "skipped (no changes detected)"))
   }
 }
 
@@ -158,16 +176,11 @@ if (RUN_EVENT_STUDIES) {
 }
 
 #' -----------------------------------------------------------------------------
-#' TIER 3b: Modern staggered DiD — Sun & Abraham (2021)
+#' TIER 3b: Modern staggered DiD estimators (Sun & Abraham, Callaway & Sant'Anna)
 #' -----------------------------------------------------------------------------
-#' Uses fixest::sunab() with weekly aggregation to avoid the infeasible
-#' cohort x period matrix that arises from daily data.
-#'
-#' Legacy estimators (moved to legacy/ — not run by this pipeline):
-#'   - Callaway & Sant'Anna (2021): too slow and crash-prone with daily panels
-#'   - did2s / Gardner (2022): vcov bug in did2s 1.0.2 + fixest 0.11.x
 
 if (RUN_MODERN_DID) {
+  modern_suffixes <- c("did2s", "sunab", "cs")
   modern_bases <- c(
     "03_03_termination",
     "03_04_new_hire",
@@ -178,15 +191,37 @@ if (RUN_MODERN_DID) {
   )
 
   for (base in modern_bases) {
-    script_name <- paste0(base, "_sunab")
-    script_file <- paste0(script_name, ".R")
-    output_file <- file.path(CONFIG$figures_dir, paste0(script_name, ".png"))
-    run_step(script_name, script_file,
-             deps = c("config.R", script_file, est_sample_path),
-             outputs = output_file)
+    for (suffix in modern_suffixes) {
+      script_name <- paste0(base, "_", suffix)
+      script_file <- paste0(script_name, ".R")
+      if (!file.exists(script_file)) next
+
+      output_file <- file.path(CONFIG$figures_dir, paste0(script_name, ".png"))
+
+      ## did2s scripts are known to fail with did2s 1.0.2 + fixest 0.10.0
+      ## (vcov dimension mismatch). Wrap in tryCatch so they do not halt the
+      ## pipeline; sunab and CS scripts should still run.
+      if (suffix == "did2s") {
+        tryCatch(
+          run_step(script_name, script_file,
+                   deps = c("config.R", script_file, est_sample_path),
+                   outputs = output_file),
+          error = function(e) {
+            emit_status(paste(script_name, "failed (non-fatal):", e$message),
+                        level = "WARN")
+            emit_status("did2s requires did2s >= 1.1.0 and fixest >= 0.11.0",
+                        level = "WARN")
+          }
+        )
+      } else {
+        run_step(script_name, script_file,
+                 deps = c("config.R", script_file, est_sample_path),
+                 outputs = output_file)
+      }
+    }
   }
 
-  ## Diagnostic comparison: TWFE vs. Sun & Abraham
+  ## Diagnostic comparison across all estimators
   run_step("03_09_staggered_did_diagnostic",
            "03_09_staggered_did_diagnostic.R",
            deps = c("config.R", "03_09_staggered_did_diagnostic.R", est_sample_path))
@@ -331,9 +366,7 @@ if (RUN_SIM_COMPARE) {
 
 pipeline_end <- Sys.time()
 total_time <- difftime(pipeline_end, pipeline_start, units = "mins")
-write_pipeline_summary(pipeline_results, pipeline_start,
-                       summary_name = "run_analysis.log",
-                       title = "ANALYSIS PIPELINE SUMMARY")
+pipeline_success <- all(vapply(pipeline_results, function(r) isTRUE(r$success), logical(1)))
 
 message("\n", strrep("=", 70))
 message("ANALYSIS PIPELINE COMPLETE")
@@ -342,12 +375,10 @@ message("Total time: ", round(total_time, 2), " minutes")
 
 for (name in names(pipeline_results)) {
   r <- pipeline_results[[name]]
-  if (r$skipped) {
-    status_str <- "SKIPPED (up to date)"
-  } else if (r$success) {
-    status_str <- sprintf("SUCCESS (%.2f min)", r$duration)
+  status_str <- if (isTRUE(r$skipped)) {
+    "SKIPPED (up to date)"
   } else {
-    status_str <- sprintf("FAILURE: %s", r$error)
+    format_pipeline_result(r)
   }
   message(sprintf("  %s: %s", name, status_str))
 }
