@@ -79,7 +79,9 @@ log_complete <- function(success, duration = NULL) {
   if (is.na(header_end)) header_end <- length(log_content)
   messages <- if (header_end < length(log_content)) {
     log_content[(header_end + 1):length(log_content)]
-  } else { character(0) }
+  } else {
+    character(0)
+  }
 
   header <- paste0(
     strrep("=", 60), "\n",
@@ -113,8 +115,10 @@ parse_log_metadata <- function(script_name) {
   status <- trimws(sub("^Status:", "", status_line[1]))
   completed_str <- trimws(sub("^Completed:", "", completed_line[1]))
   completed_time <- if (completed_str == "RUNNING") NULL else {
-    tryCatch(as.POSIXct(completed_str, format = "%Y-%m-%d %H:%M:%S"),
-             error = function(e) NULL)
+    tryCatch(
+      as.POSIXct(completed_str, format = "%Y-%m-%d %H:%M:%S"),
+      error = function(e) NULL
+    )
   }
 
   list(exists = TRUE, status = status, completed_time = completed_time)
@@ -127,11 +131,19 @@ needs_rerun <- function(script_name, dependencies = NULL, outputs = NULL) {
   }
 
   meta <- parse_log_metadata(script_name)
-  if (!meta$exists) { message("  -> No log for ", script_name); return(TRUE) }
-  if (meta$status != "SUCCESS") { message("  -> Previous: ", meta$status); return(TRUE) }
-  if (is.null(meta$completed_time)) { message("  -> No timestamp"); return(TRUE) }
+  if (!meta$exists) {
+    message("  -> No log for ", script_name)
+    return(TRUE)
+  }
+  if (meta$status != "SUCCESS") {
+    message("  -> Previous: ", meta$status)
+    return(TRUE)
+  }
+  if (is.null(meta$completed_time)) {
+    message("  -> No timestamp")
+    return(TRUE)
+  }
 
-  ## Check that all expected outputs exist
   if (!is.null(outputs)) {
     missing <- outputs[!file.exists(outputs)]
     if (length(missing) > 0) {
@@ -143,13 +155,15 @@ needs_rerun <- function(script_name, dependencies = NULL, outputs = NULL) {
   log_time <- meta$completed_time
 
   if (file.exists(script_name) && file.mtime(script_name) > log_time) {
-    message("  -> ", script_name, " modified"); return(TRUE)
+    message("  -> ", script_name, " modified")
+    return(TRUE)
   }
 
   if (!is.null(dependencies)) {
     for (dep in dependencies) {
       if (file.exists(dep) && file.mtime(dep) > log_time) {
-        message("  -> Dependency ", dep, " modified"); return(TRUE)
+        message("  -> Dependency ", dep, " modified")
+        return(TRUE)
       }
     }
   }
@@ -189,6 +203,12 @@ run_with_logging <- function(script_name, dependencies = NULL, outputs = NULL, f
        error = error_msg, skipped = FALSE)
 }
 
+format_pipeline_result <- function(result) {
+  if (isTRUE(result$skipped)) return("SKIPPED")
+  if (isTRUE(result$success)) return(sprintf("SUCCESS (%.2f min)", result$duration))
+  sprintf("FAILURE: %s", result$error)
+}
+
 write_pipeline_summary <- function(results, pipeline_start,
                                    summary_name = "run_all.log",
                                    title = "PIPELINE SUMMARY") {
@@ -207,13 +227,44 @@ write_pipeline_summary <- function(results, pipeline_start,
     strrep("=", 60), "", "Step Results:", strrep("-", 40)
   )
   for (name in names(results)) {
-    r <- results[[name]]
-    if (r$skipped) status_str <- "SKIPPED"
-    else if (r$success) status_str <- sprintf("SUCCESS (%.2f min)", r$duration)
-    else status_str <- sprintf("FAILURE: %s", r$error)
-    lines <- c(lines, sprintf("  %s: %s", name, status_str))
+    lines <- c(lines, sprintf("  %s: %s", name, format_pipeline_result(results[[name]])))
   }
   lines <- c(lines, "", strrep("=", 60))
   writeLines(lines, summary_path)
   invisible(NULL)
+}
+
+log_pipeline_summary <- function(results, pipeline_start,
+                                 title = "PIPELINE SUMMARY") {
+  if (is.null(.log_env$current_log_path)) {
+    warning("log_pipeline_summary called before log_init")
+    return(invisible(NULL))
+  }
+
+  end_time <- Sys.time()
+  total_duration <- as.numeric(difftime(end_time, pipeline_start, units = "mins"))
+  all_success <- all(sapply(results, function(r) r$success))
+  overall_status <- if (all_success) "SUCCESS" else "FAILURE"
+
+  log_message(strrep("=", 60))
+  log_message(title)
+  log_message(paste("Started:", format(pipeline_start, "%Y-%m-%d %H:%M:%S")))
+  log_message(paste("Completed:", format(end_time, "%Y-%m-%d %H:%M:%S")))
+  log_message(paste("Status:", overall_status))
+  log_message(paste("Total Duration:", sprintf("%.2f minutes", total_duration)))
+  log_message(strrep("=", 60))
+
+  if (length(results) > 0) {
+    log_message("Step Results:")
+    log_message(strrep("-", 40))
+    for (name in names(results)) {
+      log_message(sprintf("  %s: %s", name, format_pipeline_result(results[[name]])))
+    }
+  }
+
+  invisible(list(
+    end_time = end_time,
+    total_duration = total_duration,
+    overall_status = overall_status
+  ))
 }

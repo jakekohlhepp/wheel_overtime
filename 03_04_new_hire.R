@@ -15,7 +15,6 @@ log_init("03_04_new_hire.R")
 #' ---------------------------------------------------------------------------
 
 library('fixest')
-library('did2s')
 library('data.table')
 library('ggplot2')
 

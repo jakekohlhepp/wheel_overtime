@@ -14,7 +14,6 @@ log_init("03_06_own_fmla.R")
 #' ---------------------------------------------------------------------------
 
 library('fixest')
-library('did2s')
 library('data.table')
 library('ggplot2')
 

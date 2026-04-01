@@ -15,7 +15,6 @@ log_init("03_07_bereave.R")
 #' ---------------------------------------------------------------------------
 
 library('fixest')
-library('did2s')
 library('data.table')
 library('ggplot2')
 

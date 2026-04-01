@@ -29,11 +29,27 @@ RUN_NETWORK       <- TRUE   ## 01_06: network panels (30, 90, 180 day windows)
 RUN_MAP           <- TRUE   ## 01_07: enforcement districts map (requires internet)
 
 pipeline_results <- list()
+pipeline_success <- FALSE
+
+emit_status <- function(msg, level = "INFO") {
+  message(msg)
+  log_message(msg, level = level)
+}
+
+log_init("run_prep_data.R")
+on.exit({
+  total_time <- as.numeric(difftime(Sys.time(), pipeline_start, units = "mins"))
+  log_pipeline_summary(pipeline_results, pipeline_start,
+                       title = "DATA PREPARATION SUMMARY")
+  log_complete(success = pipeline_success, duration = total_time)
+}, add = TRUE)
 
 message("\n", strrep("=", 70))
 message("DATA PREPARATION PIPELINE")
 message(strrep("=", 70))
 message("Start time: ", pipeline_start)
+log_message("DATA PREPARATION PIPELINE")
+log_message(paste("Start time:", format(pipeline_start, "%Y-%m-%d %H:%M:%S")))
 
 #' -----------------------------------------------------------------------------
 #' Helper: run a single step
@@ -44,33 +60,35 @@ run_step <- function(step_name, script, deps, outputs = NULL,
   message("\n", strrep("-", 70))
   message("STEP: ", step_name)
   message(strrep("-", 70))
+  log_message(paste("STEP:", step_name))
 
   if (needs_rerun(step_name, deps, outputs = outputs)) {
     step_start <- Sys.time()
+    emit_status(paste("Running", step_name))
 
     tryCatch({
       source(script, local = env)
       if (!is.null(outputs)) assert_required_files(outputs)
 
       step_time <- difftime(Sys.time(), step_start, units = "mins")
-      message(step_name, " complete (", round(step_time, 2), " minutes)")
       pipeline_results[[step_name]] <<- list(
         ran = TRUE, success = TRUE, duration = as.numeric(step_time),
         error = NULL, skipped = FALSE
       )
-
+      emit_status(sprintf("%s complete (%.2f minutes)", step_name, as.numeric(step_time)))
     }, error = function(e) {
       pipeline_results[[step_name]] <<- list(
         ran = TRUE, success = FALSE, duration = 0,
         error = e$message, skipped = FALSE
       )
+      emit_status(paste(step_name, "failed:", e$message), level = "ERROR")
       stop(step_name, " failed: ", e$message)
     })
   } else {
-    message(step_name, " skipped (no changes detected)")
     pipeline_results[[step_name]] <<- list(
       ran = FALSE, success = TRUE, duration = 0, error = NULL, skipped = TRUE
     )
+    emit_status(paste(step_name, "skipped (no changes detected)"))
   }
 }
 
@@ -199,9 +217,7 @@ if (RUN_MAP) {
 
 pipeline_end <- Sys.time()
 total_time <- difftime(pipeline_end, pipeline_start, units = "mins")
-write_pipeline_summary(pipeline_results, pipeline_start,
-                       summary_name = "run_prep_data.log",
-                       title = "DATA PREPARATION SUMMARY")
+pipeline_success <- all(vapply(pipeline_results, function(r) isTRUE(r$success), logical(1)))
 
 message("\n", strrep("=", 70))
 message("DATA PREPARATION COMPLETE")
@@ -210,12 +226,10 @@ message("Total time: ", round(total_time, 2), " minutes")
 
 for (name in names(pipeline_results)) {
   r <- pipeline_results[[name]]
-  if (r$skipped) {
-    status_str <- "SKIPPED (up to date)"
-  } else if (r$success) {
-    status_str <- sprintf("SUCCESS (%.2f min)", r$duration)
+  status_str <- if (isTRUE(r$skipped)) {
+    "SKIPPED (up to date)"
   } else {
-    status_str <- sprintf("FAILURE: %s", r$error)
+    format_pipeline_result(r)
   }
   message(sprintf("  %s: %s", name, status_str))
 }
