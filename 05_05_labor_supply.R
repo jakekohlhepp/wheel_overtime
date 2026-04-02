@@ -1,8 +1,8 @@
 #' =============================================================================
-#' LABOR SUPPLY ANALYSIS
+#' LABOR SUPPLY SUMMARY
 #' =============================================================================
-#' Analyzes labor supply elasticity by computing dollar-equivalent valuations
-#' and examining family leave and age heterogeneity.
+#' Computes officer-level labor supply valuation summaries.
+#' Demographic heterogeneity plots are produced in 05_03_cartel_demographics.R.
 #'
 #' Input:  data/04_01_estimate.Rdata        (logit model)
 #'         data/02_01_estimation_sample.rds  (estimation sample)
@@ -11,7 +11,6 @@
 
 library('data.table')
 library('alpaca')
-library('lubridate')
 
 source('config.R')
 source('utils/logging.R')
@@ -52,14 +51,6 @@ all_pairs <- all_pairs[!is.na(officer_fe), ]
 all_pairs[, det_val := ((date_fe + officer_fe + seniority_rank * coef(mod_mod)["seniority_rank"] +
             normal_work * coef(mod_mod)["normal_work"]) / coef(mod_mod)["ot_rate"] + ot_rate) * avg_ot_hours]
 
-## Family leave indicator
-all_pairs[, has_family := max(family_leave, na.rm = TRUE), by = "num_emp1"]
-
-## Age on estimation start
-all_pairs[, age_on_start := an_age - (analysis_workdate - CONFIG$estimation_start) / 365.25, by = "num_emp1"]
-stopifnot(all_pairs[, .(check = uniqueN(round(age_on_start, digits = 8))), by = "num_emp1"]$check == 1)
-all_pairs[, age_on_start := as.numeric(max(age_on_start)), by = "num_emp1"]
-
 #' -----------------------------------------------------------------------------
 #' SUMMARIZE BY OFFICER
 #' -----------------------------------------------------------------------------
@@ -69,7 +60,7 @@ by_emp <- all_pairs[, .(observed_ot_count = sum(ot_work), valuation = mean(det_v
                         avg_suppliers = mean(l_wheel_degree),
                         barrier_avg = mean(coef(mod_mod)['opp_dist'] * opp_dist + coef(mod_mod)['suppliers_interacted'] * suppliers_interacted),
                         avg_seniority = mean(seniority_rank)),
-                    by = c("num_emp1", "has_family", "age_on_start")]
+                    by = "num_emp1"]
 
 log_message(paste("Officer summary:", nrow(by_emp), "officers"))
 log_complete(success = TRUE)
