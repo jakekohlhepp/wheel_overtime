@@ -221,10 +221,6 @@ if (RUN_MODERN_DID) {
     }
   }
 
-  ## Diagnostic comparison across all estimators
-  run_step("03_09_staggered_did_diagnostic",
-           "03_09_staggered_did_diagnostic.R",
-           deps = c("config.R", "03_09_staggered_did_diagnostic.R", est_sample_path))
 }
 
 #' -----------------------------------------------------------------------------
