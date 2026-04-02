@@ -177,61 +177,84 @@ log_message(paste("Running", n_sims, "simulations on", core_count, "cores"))
 
 ## Use parLapply (works on Windows, unlike mclapply which falls back to 1 core)
 cl <- makeCluster(core_count)
+on.exit({
+  if (exists("cl") && !is.null(cl)) {
+    try(stopCluster(cl), silent = TRUE)
+  }
+}, add = TRUE)
+
 bootstrap_project_cluster(cl, packages = c("data.table", "Rcpp"))
 clusterSetRNGStream(cl, 477812)
 
 ## Export everything except do_sim: Rcpp-compiled function pointers do not
 ## survive R serialization, so the sim_step symbol captured in do_sim's closure
-## arrives on workers as NULL. Instead, do_sim is defined inside clusterEvalQ
-## below, *after* cppFunction() runs on each worker, so sim_step resolves to
-## the freshly-compiled local symbol rather than the dead main-process pointer.
+## arrives on workers as NULL. Instead, do_sim is defined on each worker after
+## cppFunction() runs locally. Compile in small batches to avoid Windows / GCC
+## memory failures when many workers build the same shared library at once.
 clusterExport(cl, c("date_list", "date_count", "n_officers",
                      "coef_ot_rate", "swap_count", "n_steps",
                      "sim_step_src"), envir = environment())
-clusterEvalQ(cl, {
-  cppFunction(sim_step_src)   # compiles sim_step locally on this worker
 
-  ## Redefine do_sim here so the sim_step reference resolves to the local copy
-  do_sim <- function(sim_id) {
-    res_savy   <- integer(n_steps)
-    res_value  <- numeric(n_steps)
-    res_ineq   <- numeric(n_steps)
+compile_batch_size <- min(2L, core_count)
+worker_batches <- split(seq_len(core_count),
+                        ceiling(seq_len(core_count) / compile_batch_size))
 
-    n_dates   <- length(date_list)
-    vals_list <- vector("list", n_dates)
-    ids_list  <- vector("list", n_dates)
-    ot_counts <- integer(n_dates)
+for (batch_idx in seq_along(worker_batches)) {
+  batch <- worker_batches[[batch_idx]]
+  log_message(
+    paste0(
+      "Initializing Rcpp worker batch ", batch_idx, "/", length(worker_batches),
+      " (", length(batch), " workers)"
+    )
+  )
 
-    for (d in seq_len(n_dates)) {
-      dt           <- date_list[[d]]
-      n            <- nrow(dt)
-      ot_counts[d] <- dt$tot_ot_among[1L]
-      true_val     <- (dt$det_val + rlogis(n)) / coef_ot_rate
-      rand_order   <- sample.int(n)
-      vals_list[[d]] <- true_val[rand_order]
-      ids_list[[d]]  <- dt$officer_idx[rand_order]
+  clusterEvalQ(cl[batch], {
+    cppFunction(sim_step_src)
+
+    ## Redefine do_sim here so the sim_step reference resolves to the local copy
+    do_sim <- function(sim_id) {
+      res_savy   <- integer(n_steps)
+      res_value  <- numeric(n_steps)
+      res_ineq   <- numeric(n_steps)
+
+      n_dates   <- length(date_list)
+      vals_list <- vector("list", n_dates)
+      ids_list  <- vector("list", n_dates)
+      ot_counts <- integer(n_dates)
+
+      for (d in seq_len(n_dates)) {
+        dt           <- date_list[[d]]
+        n            <- nrow(dt)
+        ot_counts[d] <- dt$tot_ot_among[1L]
+        true_val     <- (dt$det_val + rlogis(n)) / coef_ot_rate
+        rand_order   <- sample.int(n)
+        vals_list[[d]] <- true_val[rand_order]
+        ids_list[[d]]  <- dt$officer_idx[rand_order]
+      }
+
+      savy      <- 0L
+      converged <- FALSE
+
+      for (step in seq_len(n_steps)) {
+        do_sort <- step > 1L && !converged
+        out <- sim_step(vals_list, ids_list, ot_counts,
+                        swap_count, n_officers, do_sort)
+
+        res_savy[step]  <- savy
+        res_value[step] <- out[[1L]]
+        res_ineq[step]  <- out[[2L]]
+
+        if (do_sort && out[[3L]] == 0L) converged <- TRUE
+        savy <- savy + swap_count * date_count
+      }
+
+      data.table(savy_num = res_savy, sim_num = sim_id,
+                 worker_value = res_value, share_top10 = res_ineq)
     }
 
-    savy      <- 0L
-    converged <- FALSE
-
-    for (step in seq_len(n_steps)) {
-      do_sort <- step > 1L && !converged
-      out <- sim_step(vals_list, ids_list, ot_counts,
-                      swap_count, n_officers, do_sort)
-
-      res_savy[step]  <- savy
-      res_value[step] <- out[[1L]]
-      res_ineq[step]  <- out[[2L]]
-
-      if (do_sort && out[[3L]] == 0L) converged <- TRUE
-      savy <- savy + swap_count * date_count
-    }
-
-    data.table(savy_num = res_savy, sim_num = sim_id,
-               worker_value = res_value, share_top10 = res_ineq)
-  }
-})
+    invisible(TRUE)
+  })
+}
 
 ## Pass an anonymous wrapper rather than do_sim directly: parLapply evaluates
 ## its FUN argument in the main process before dispatching, and do_sim only
@@ -241,6 +264,7 @@ clusterEvalQ(cl, {
 sim_start <- Sys.time()
 results_list <- parLapply(cl, 1:n_sims, function(i) do_sim(i))
 stopCluster(cl)
+cl <- NULL
 
 sim_time <- difftime(Sys.time(), sim_start, units = "mins")
 log_message(paste("Simulations complete:", round(sim_time, 1), "minutes"))
