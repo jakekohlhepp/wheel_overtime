@@ -44,6 +44,7 @@ renv/sandbox/
 
 # Machine-specific
 .Renviron
+.claude/settings.local.json
 
 # OS files
 .DS_Store
