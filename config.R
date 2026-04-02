@@ -121,6 +121,61 @@ ensure_directory <- function(path) {
   invisible(path)
 }
 
+#' Helper: activate the project library in a fresh R session when available
+activate_project_library <- function(project = getwd(), quiet = FALSE) {
+  project <- normalizePath(project, winslash = "/", mustWork = FALSE)
+
+  if (requireNamespace("renv", quietly = TRUE)) {
+    tryCatch({
+      renv::load(project = project)
+      return(invisible(TRUE))
+    }, error = function(e) {
+      if (!quiet) {
+        message(
+          "renv activation failed; continuing without the project library. ",
+          "Original error: ", conditionMessage(e)
+        )
+      }
+    })
+  } else if (!quiet) {
+    message(
+      "renv is not installed locally; continuing without project library activation."
+    )
+  }
+
+  invisible(FALSE)
+}
+
+#' Helper: make PSOCK workers use the same project library as the main session
+bootstrap_project_cluster <- function(cl, packages = character(), project = getwd()) {
+  project_dir <- normalizePath(project, winslash = "/", mustWork = TRUE)
+  packages_to_load <- as.character(packages)
+
+  parallel::clusterExport(
+    cl,
+    c("project_dir", "packages_to_load", "activate_project_library"),
+    envir = environment()
+  )
+
+  parallel::clusterEvalQ(cl, {
+    activate_project_library(project = project_dir, quiet = TRUE)
+
+    for (pkg in packages_to_load) {
+      if (!requireNamespace(pkg, quietly = TRUE)) {
+        stop(
+          "Required package '", pkg,
+          "' is not available on this worker node after project library activation."
+        )
+      }
+      suppressPackageStartupMessages(library(pkg, character.only = TRUE))
+    }
+
+    invisible(TRUE)
+  })
+
+  invisible(cl)
+}
+
 #' Helper: assert files exist or stop with informative error
 assert_required_files <- function(paths) {
   missing <- paths[!file.exists(paths)]
@@ -217,5 +272,4 @@ format_stata_week <- function(x) {
   out[keep] <- paste0(year, 'w', week)
   out
 }
-
 

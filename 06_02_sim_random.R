@@ -124,6 +124,7 @@ n_cores <- min(detectCores() - 1, 10)
 log_message(paste0("Starting random assignment simulation with ", max_iter, " iterations on ", n_cores, " cores"))
 
 cl <- makeCluster(n_cores)
+bootstrap_project_cluster(cl, packages = "data.table")
 clusterExport(cl, c("ap_slim", "beta_ot", "beta_od", "beta_si", "run_one_random_iter", "iter_seeds"), envir = environment())
 
 out <- parLapply(cl, seq_len(max_iter), function(iter) {

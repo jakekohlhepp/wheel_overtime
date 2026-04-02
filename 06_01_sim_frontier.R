@@ -177,6 +177,7 @@ log_message(paste("Running", n_sims, "simulations on", core_count, "cores"))
 
 ## Use parLapply (works on Windows, unlike mclapply which falls back to 1 core)
 cl <- makeCluster(core_count)
+bootstrap_project_cluster(cl, packages = c("data.table", "Rcpp"))
 clusterSetRNGStream(cl, 477812)
 
 ## Export everything except do_sim: Rcpp-compiled function pointers do not
@@ -188,8 +189,6 @@ clusterExport(cl, c("date_list", "date_count", "n_officers",
                      "coef_ot_rate", "swap_count", "n_steps",
                      "sim_step_src"), envir = environment())
 clusterEvalQ(cl, {
-  library(data.table)
-  library(Rcpp)
   cppFunction(sim_step_src)   # compiles sim_step locally on this worker
 
   ## Redefine do_sim here so the sim_step reference resolves to the local copy

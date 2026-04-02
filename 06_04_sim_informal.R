@@ -220,10 +220,10 @@ n_cores <- min(detectCores() - 1, 10)
 log_message(paste0("Running on ", n_cores, " cores"))
 
 cl <- makeCluster(n_cores)
+bootstrap_project_cluster(cl, packages = "data.table")
 clusterExport(cl, c("date_splits", "grid", "max_iter", "beta_ot",
                      "n_officers", "unique_officers", "cell_seeds",
                      "run_one_cell"), envir = environment())
-clusterEvalQ(cl, library(data.table))
 
 out <- parLapply(cl, seq_len(nrow(grid)), function(i) {
   set.seed(cell_seeds[i])

@@ -86,13 +86,17 @@ rm(contact_matrix)
 
 #' Assign peer treatment via contact matrix loop.
 #' Returns data with treat, first_treat, rel_time columns added.
-assign_peer_treatment <- function(dt, event_rows) {
+assign_peer_treatment <- function(dt, event_rows, positive_contact = FALSE) {
   id_cols <- grep("^[0-9]+$", names(dt), value = TRUE)
   dt[, treat := 0]
   for (tt in 1:nrow(event_rows)) {
     mark_list <- as.numeric(event_rows[tt, .SD, .SDcols = id_cols])
     names(mark_list) <- id_cols
-    mark_list <- names(mark_list)[which(mark_list >= 1)]
+    if (positive_contact) {
+      mark_list <- names(mark_list)[which(mark_list > 0)]
+    } else {
+      mark_list <- names(mark_list)[which(mark_list >= 1)]
+    }
     date_focal <- event_rows[tt, ]$analysis_workdate
     dt[, treat := treat + ((num_emp1 %in% as.numeric(mark_list)) & (analysis_workdate >= 1 + date_focal))]
   }
@@ -114,7 +118,8 @@ run_estimators <- function(est_data, outcome, ref_period, event_label, ylab, fil
 
   # --- 1. TWFE ---
   log_message(paste(" ", event_label, "- TWFE"))
-  fml_twfe <- as.formula(paste0(outcome, " ~ i(rel_time, ref = -c(", ref_period, ", Inf)) | num_emp1 + analysis_workdate"))
+  twfe_ref <- abs(ref_period)
+  fml_twfe <- as.formula(paste0(outcome, " ~ i(rel_time, ref = -c(", twfe_ref, ", Inf)) | num_emp1 + analysis_workdate"))
   twfe_fit <- feols(fml_twfe, data = est_data, cluster = ~num_emp1)
   results[["twfe"]] <- extract_fixest_es(twfe_fit, "TWFE")
 
@@ -183,7 +188,7 @@ dt2[, first_time := min(analysis_workdate), by = "num_emp1"]
 dt2[, is_hire := first_time == analysis_workdate & first_time >= as.Date('2015-02-01')]
 dt2[, does_hire := max(is_hire), by = "num_emp1"]
 hire_events <- copy(dt2[is_hire == 1, ])
-dt2 <- assign_peer_treatment(dt2, hire_events)
+dt2 <- assign_peer_treatment(dt2, hire_events, positive_contact = TRUE)
 est2 <- dt2[does_hire == 0]
 pool2 <- run_estimators(est2, "l_degree", -1, "New Hire (Peer)", "Connectedness",
                          "03_09_diagnostic_new_hire.png")

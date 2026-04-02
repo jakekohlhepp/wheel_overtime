@@ -139,6 +139,7 @@ n_cores <- min(detectCores() - 1, 10)
 log_message(paste0("Running on ", n_cores, " cores"))
 
 cl <- makeCluster(n_cores)
+bootstrap_project_cluster(cl, packages = "data.table")
 clusterExport(cl, c("ap_slim", "grid", "max_iter", "beta_sr", "beta_nw", "beta_ot",
                      "run_one_cell_perfect", "cell_seeds"), envir = environment())
 

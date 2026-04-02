@@ -176,6 +176,7 @@ straight_seeds <- sample.int(.Machine$integer.max, max_iter)
 log_message("Starting deviation-from-base auction simulation")
 
 cl <- makeCluster(n_cores)
+bootstrap_project_cluster(cl, packages = "data.table")
 clusterExport(cl, c("ap_slim", "beta_ot", "run_one_dev_iter", "dev_seeds"), envir = environment())
 
 dev_out <- parLapply(cl, seq_len(max_iter), function(iter) {
@@ -208,6 +209,7 @@ saveRDS(results_byworker, file.path(CONFIG$data_dir, "06_03_sim_auction_dev_bywo
 log_message("Starting straight shift auction simulation")
 
 cl <- makeCluster(n_cores)
+bootstrap_project_cluster(cl, packages = "data.table")
 clusterExport(cl, c("ap_slim", "beta_ot", "run_one_straight_iter", "straight_seeds"), envir = environment())
 
 straight_out <- parLapply(cl, seq_len(max_iter), function(iter) {
