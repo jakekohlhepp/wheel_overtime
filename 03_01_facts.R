@@ -5,8 +5,7 @@
 #'         data/{pre_network_prefix}{network_window_default}.csv (tenure, injury)
 #'         Contact matrix via load_contact_matrix() (for network plots)
 #'         {raw_pay_dir}/anonymized_data_073117.txt (bereavement, FMLA flags)
-#' Output: out/tables/03_01_summary_stats.tex
-#'         out/tables/03_01_summary_stats_officer.tex
+#' Output: out/tables/03_01_summary_stats.tex (stacked officer-day and officer-level summary stats)
 #'         out/tables/03_01_claim.tex
 #'         out/tables/03_01_nature.tex
 #'         out/figures/03_01_*.png (various descriptive plots)
@@ -59,16 +58,34 @@ all_pairs[, s_degree := l_degree / sd(l_degree, na.rm = TRUE)]
 #' ---------------------------------------------------------------------------
 
 log_message("Computing summary statistics")
+
+format_summary_panel <- function(dt) {
+  panel <- data.table(
+    Variable = names(dt),
+    Mean = sapply(dt, function(x) mean(x, na.rm = TRUE)),
+    SD = sapply(dt, function(x) sd(x, na.rm = TRUE)),
+    P25 = sapply(dt, function(x) as.numeric(quantile(x, probs = 0.25, na.rm = TRUE))),
+    P75 = sapply(dt, function(x) as.numeric(quantile(x, probs = 0.75, na.rm = TRUE)))
+  )
+
+  for (col in c("Mean", "SD", "P25", "P75")) {
+    panel[, (col) := sprintf("%.3f", get(col))]
+  }
+
+  panel
+}
+
+format_count <- function(x) {
+  format(x, big.mark = ",", scientific = FALSE, trim = TRUE)
+}
+
 sum_stat <- copy(all_pairs[, c("max_rate", "an_age", "tenure", "normal_work", "ot_work", "expected_earnings")])
 names(sum_stat) <- c("Wage", "Age", "Tenure",
                      "Standard Work", "Overtime", "Expected Earnings")
-stargazer(sum_stat, header = FALSE, type = 'text', summary.stat = c("mean", "sd", "p25", "p75"))
-stopifnot(nrow(all_pairs) == CONFIG$expected_estimation_rows)
-
-ensure_directory(CONFIG$tables_dir)
-stargazer(sum_stat, header = FALSE, digits = 3,
-          out = file.path(CONFIG$tables_dir, "03_01_summary_stats.tex"),
-          single.row = TRUE, summary.stat = c("mean", "sd", "p25", "p75"))
+officer_day_n_officers <- uniqueN(all_pairs$num_emp1)
+officer_day_n_observations <- nrow(all_pairs)
+stopifnot(officer_day_n_observations == CONFIG$expected_estimation_rows)
+stopifnot(officer_day_n_officers == CONFIG$expected_estimation_officers)
 
 #' ---------------------------------------------------------------------------
 #' OFFICER-LEVEL SUMMARY
@@ -84,12 +101,39 @@ byofficer[, tenure := tenure + as.numeric(CONFIG$estimation_start - rel_date) / 
 byofficer <- byofficer[, c("rate", "age", "tenure", "count", "work_count", "ot_count")]
 names(byofficer) <- c("Wage", "Age", "Tenure", "Days Active",
                      "Standard Work", "Overtime")
-stargazer(byofficer, header = FALSE, type = 'text', summary.stat = c("mean", "sd", "p25", "p75"))
-stopifnot(nrow(byofficer) == CONFIG$expected_estimation_officers)
+officer_level_n_officers <- nrow(byofficer)
+officer_level_n_observations <- nrow(byofficer)
+stopifnot(officer_level_n_officers == CONFIG$expected_estimation_officers)
 
-stargazer(byofficer, header = FALSE, digits = 3,
-          out = file.path(CONFIG$tables_dir, "03_01_summary_stats_officer.tex"),
-          single.row = TRUE, summary.stat = c("mean", "sd", "p25", "p75"))
+stacked_summary <- rbindlist(list(
+  data.table(
+    Variable = sprintf("\\textit{Officer-Day Summary Statistics (N officers = %s, N observations = %s)}",
+                       format_count(officer_day_n_officers),
+                       format_count(officer_day_n_observations)),
+    Mean = "", SD = "", P25 = "", P75 = ""
+  ),
+  format_summary_panel(sum_stat),
+  data.table(
+    Variable = sprintf("\\textit{Officer-Level Summary Statistics (N officers = %s, N observations = %s)}",
+                       format_count(officer_level_n_officers),
+                       format_count(officer_level_n_observations)),
+    Mean = "", SD = "", P25 = "", P75 = ""
+  ),
+  format_summary_panel(byofficer)
+), use.names = TRUE, fill = TRUE)
+
+summary_output_path <- file.path(CONFIG$tables_dir, "03_01_summary_stats.tex")
+legacy_officer_output_path <- file.path(CONFIG$tables_dir, "03_01_summary_stats_officer.tex")
+
+ensure_directory(CONFIG$tables_dir)
+kable(stacked_summary, "latex", align = c("l", "c", "c", "c", "c"),
+      booktabs = TRUE, linesep = c(""), escape = FALSE, caption = NA, label = NA) %>%
+  cat(., file = summary_output_path)
+
+if (file.exists(legacy_officer_output_path)) {
+  file.remove(legacy_officer_output_path)
+}
+log_message("Saved stacked summary statistics table")
 
 #' ---------------------------------------------------------------------------
 #' CLAIM AND INJURY TABLES
@@ -186,6 +230,9 @@ setorder(ot_emp_level, "ot_tot", "num_emp1")
 ot_emp_level[, position := (1:.N) / .N]
 ot_emp_level[, cum_ot := cumsum(ot_tot) / sum(ot_tot)]
 ot_emp_level[, is_90th := position >= 0.9 & shift(position) < 0.9]
+stopifnot(nrow(ot_emp_level[is_90th == TRUE]) == 1)
+observed_top10_ot_share <- 1 - ot_emp_level[is_90th == TRUE]$cum_ot[1]
+log_message(sprintf("Observed overtime share worked by the top 10%% of officers: %.3f", observed_top10_ot_share))
 print(ot_emp_level[is_90th == 1])
 
 ggplot(ot_emp_level, aes(x = ot_tot)) +
@@ -194,6 +241,11 @@ ggplot(ot_emp_level, aes(x = ot_tot)) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15))
 ggsave(file.path(CONFIG$figures_dir, "03_01_ot_dipersion_count.png"), width = 12, height = 8, units = "in")
+
+ot_positive_quartiles <- quantile(ot_emp_level[ot_tot > 0]$ot_tot, c(0.25, 0.75), na.rm = TRUE)
+ot_positive_iqr <- as.numeric(ot_positive_quartiles["75%"] - ot_positive_quartiles["25%"])
+log_message(sprintf("IQR of overtime shifts worked among officers with any overtime: %.3f (P25 = %.3f, P75 = %.3f)",
+                    ot_positive_iqr, as.numeric(ot_positive_quartiles["25%"]), as.numeric(ot_positive_quartiles["75%"])))
 
 ## among those who work 1, p25 is 12.00  , p75 is 134.00, 11.2 times.
 summary(ot_emp_level[ot_tot > 1, ]$ot_tot)
@@ -398,10 +450,18 @@ dev.off()
 
 log_message("Plotting potential supplier dispersion")
 q_degree <- quantile(all_pairs$l_wheel_degree, c(0.25, 0.75), na.rm = TRUE)
+iqr_degree <- as.numeric(q_degree["75%"] - q_degree["25%"])
 raw_sd <- sd(all_pairs[!is.na(l_wheel_degree)]$l_wheel_degree)
+supplier_fe_res <- feols(l_wheel_degree ~ 0 | num_emp1, all_pairs[!is.na(l_wheel_degree)])
+supplier_resid_sd_ratio <- sd(resid(supplier_fe_res)) / raw_sd
+supplier_fe_variation_share <- 1 - supplier_resid_sd_ratio^2
+log_message(sprintf("Share of variation in potential supplier count captured by officer fixed effects: %.3f",
+                    supplier_fe_variation_share))
+log_message(sprintf("Potential supplier count IQR: %.3f (P25 = %.3f, P75 = %.3f)",
+                    iqr_degree, as.numeric(q_degree["25%"]), as.numeric(q_degree["75%"])))
 print(q_degree["75%"] / q_degree["25%"])
 
-print(sd(resid(feols(l_wheel_degree ~ 0 | num_emp1, all_pairs))) / raw_sd)
+print(supplier_resid_sd_ratio)
 
 ggplot(all_pairs, aes(x = l_wheel_degree)) +
   geom_histogram(fill = "black") + xlab("Potential Supplier Count") + ylab("Officer Count") +
@@ -425,13 +485,23 @@ ggsave(file.path(CONFIG$figures_dir, "03_01_potential_supplier_hist_idiosyncrati
 #' ---------------------------------------------------------------------------
 
 log_message("Computing supplier count and overtime relationship")
+q25_degree <- as.numeric(quantile(all_pairs$l_wheel_degree, 0.25, na.rm = TRUE))
+q75_degree <- as.numeric(quantile(all_pairs$l_wheel_degree, 0.75, na.rm = TRUE))
+q10_degree <- as.numeric(quantile(all_pairs$l_wheel_degree, 0.1, na.rm = TRUE))
+q90_degree <- as.numeric(quantile(all_pairs$l_wheel_degree, 0.9, na.rm = TRUE))
+
+bottom_quartile_ot_prob <- mean(all_pairs[!is.na(l_wheel_degree) & l_wheel_degree <= q25_degree]$ot_work)
+top_quartile_ot_prob <- mean(all_pairs[!is.na(l_wheel_degree) & l_wheel_degree >= q75_degree]$ot_work)
+log_message(sprintf("Average overtime probability in bottom quartile of potential supplier count: %.3f", bottom_quartile_ot_prob))
+log_message(sprintf("Average overtime probability in top quartile of potential supplier count: %.3f", top_quartile_ot_prob))
+
 ## 75 vs 25th percentile
-print(mean(all_pairs[!is.na(l_wheel_degree) & l_wheel_degree >= quantile(l_wheel_degree, 0.75, na.rm = TRUE)]$ot_work))
-print(mean(all_pairs[!is.na(l_wheel_degree) & l_wheel_degree <= quantile(l_wheel_degree, 0.25, na.rm = TRUE)]$ot_work))
+print(top_quartile_ot_prob)
+print(bottom_quartile_ot_prob)
 
 ## 10 vs 90th percentile
-print(mean(all_pairs[!is.na(l_wheel_degree) & l_wheel_degree >= quantile(l_wheel_degree, 0.9, na.rm = TRUE)]$ot_work))
-print(mean(all_pairs[!is.na(l_wheel_degree) & l_wheel_degree <= quantile(l_wheel_degree, 0.1, na.rm = TRUE)]$ot_work))
+print(mean(all_pairs[!is.na(l_wheel_degree) & l_wheel_degree >= q90_degree]$ot_work))
+print(mean(all_pairs[!is.na(l_wheel_degree) & l_wheel_degree <= q10_degree]$ot_work))
 
 ggplot(all_pairs[!is.na(l_wheel_degree)], aes(x = l_wheel_degree, y = as.numeric(ot_work))) +
   stat_summary_bin(fun = match.fun(mean), bins = 40,

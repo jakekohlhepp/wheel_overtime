@@ -59,11 +59,11 @@ all_pairs <- all_pairs[!is.na(officer_fe), ]
 #' IMPORT SIMULATION RESULTS (AGGREGATE)
 #' -----------------------------------------------------------------------------
 
-## Estimated coefficient values — used to identify the status-quo grid cell
+## Estimated coefficient values - used to identify the status-quo grid cell
 sq_net  <- unname(coef(mod_mod)["suppliers_interacted"])
 sq_cost <- unname(coef(mod_mod)["opp_dist"])
 
-## Status quo (informal trading) — filter to the grid cell with estimated params
+## Status quo (informal trading) - filter to the grid cell with estimated params
 status_quo <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal.rds"))
 status_quo[, worker_value := worker_value * avg_ot_hours]
 status_quo <- status_quo[network_reduction == sq_net & access_cost == sq_cost, ]
@@ -91,6 +91,11 @@ auctions_dev_sum <- auctions_dev[, .(mean_ineq = mean(share_top10),
                                       mean_allocative = mean(worker_value),
                                       mean_wage_bill = mean(wage_bill),
                                       mean_workersurplus = mean(worker_surplus))]
+
+## Random assignment
+random_assignment <- readRDS(file.path(CONFIG$data_dir, "06_02_sim_random.rds"))
+random_assignment[, worker_value := worker_value * avg_ot_hours]
+random_assignment[, worker_surplus := worker_surplus * avg_ot_hours]
 
 ## Random assignment frontier
 managers_val <- readRDS(file.path(CONFIG$data_dir, "06_01_sim_frontier.rds"))
@@ -131,7 +136,7 @@ ggsave(file.path(CONFIG$figures_dir, "07_02_uniformwages_bydate.png"), width = 1
 #' -----------------------------------------------------------------------------
 
 ## Bundle the three scenario points into a tidy data frame so ggplot handles
-## colors, shapes, and the legend automatically — no more hardcoded offsets.
+## colors, shapes, and the legend automatically - no more hardcoded offsets.
 scenario_pts <- data.frame(
   mean_allocative = c(auctions_sum$mean_allocative,
                       auctions_dev_sum$mean_allocative,
@@ -150,7 +155,7 @@ scenario_colors <- c(
   "Informal Trade"           = "#d73027"    # red
 )
 
-## Manual label nudges — Informal Trade & Markdown are very close, so
+## Manual label nudges - Informal Trade & Markdown are very close, so
 ## stagger labels to avoid overlap.
 scenario_pts$nudge_x <- 0
 scenario_pts$nudge_y <- 0
@@ -162,16 +167,16 @@ scenario_pts$nudge_y[scenario_pts$label == "Uniform-Markdown Auction"] <-  0.025
 scenario_pts$nudge_x[scenario_pts$label == "Uniform-Markdown Auction"] <- -200000
 
 ggplot() +
-  ## frontier curve — thin, grey, behind the points
+  ## frontier curve - thin, grey, behind the points
   geom_line(data = managers_val_sum[, c("mean_surplus", "mean_ineq")],
             aes(x = mean_surplus, y = mean_ineq),
             colour = "grey40", linewidth = 1, linetype = "solid") +
-  ## scenario points — sized and colored by scenario
+  ## scenario points - sized and colored by scenario
   geom_point(data = scenario_pts,
              aes(x = mean_allocative, y = mean_ineq,
                  colour = label, fill = label),
              shape = 21, size = 5, stroke = 1.2) +
-  ## scenario labels — manually nudged to avoid overlap
+  ## scenario labels - manually nudged to avoid overlap
   geom_text(data = scenario_pts,
             aes(x = mean_allocative + nudge_x,
                 y = mean_ineq + nudge_y,
@@ -257,7 +262,13 @@ ggsave(file.path(CONFIG$figures_dir, "07_02_wages_hist.png"), width = 12, height
 #' SUMMARY TABLES
 #' -----------------------------------------------------------------------------
 
-fortable <- all_auctions[, .(
+## Add random assignment to the table summaries while leaving the histogram stack unchanged.
+summary_auctions <- rbindlist(list(
+  copy(all_auctions),
+  copy(random_assignment)[, a_type := "Random Assignment"]
+), use.names = TRUE, fill = TRUE)
+
+fortable <- summary_auctions[, .(
   p5_wage_bill = quantile(wage_bill, p = 0.05), mean_wage_bill = mean(wage_bill), p95_wage_bill = quantile(wage_bill, p = 0.95),
   p5_worker_surplus = quantile(worker_surplus, p = 0.05), mean_worker_surplus = mean(worker_surplus), p95_worker_surplus = quantile(worker_surplus, p = 0.95),
   p5_worker_value = quantile(worker_value, p = 0.05), mean_worker_value = mean(worker_value), p95_worker_value = quantile(worker_value, p = 0.95),
@@ -399,56 +410,6 @@ colnames(cartel) <- c("Officer ID", "FE Rank", rep(c("Informal", "Wage", "Markdo
 kable(cartel, "latex", align = "c", booktabs = TRUE, linesep = c(""), escape = F, caption = NA, label = NA) %>%
   add_header_above(c(" " = 2, "Overtime Shifts" = 3, "Overtime Pay" = 3, "Worker Surplus" = 3)) %>%
   cat(., file = file.path(CONFIG$tables_dir, "07_02_cartel_impacts.tex"))
-
-#' -----------------------------------------------------------------------------
-#' ACCESS COST ROBUSTNESS
-#' -----------------------------------------------------------------------------
-#' The simulation grid varies network_reduction and access_cost independently.
-#' For the robustness plot we take a 1D slice: hold network_reduction at its
-#' estimated value and sweep access_cost across the grid, converting to a
-#' multiplier relative to the estimated coefficient for the x-axis.
-
-## Helper: load sim results, scale to hours, take the network-fixed slice,
-## and summarize by access_cost multiplier.
-load_robustness_slice <- function(path, sq_net, sq_cost) {
-  dt <- readRDS(path)
-  dt[, worker_value   := worker_value   * avg_ot_hours]
-  dt[, worker_surplus := worker_surplus * avg_ot_hours]
-  ## Hold network_reduction at estimated value, sweep access_cost
-  slice <- dt[network_reduction == sq_net,
-              .(mean_ineq          = mean(share_top10),
-                mean_allocative    = mean(worker_value),
-                mean_wage_bill     = mean(wage_bill),
-                mean_workersurplus = mean(worker_surplus)),
-              by = "access_cost"]
-  slice[, access_cost_mult := access_cost / sq_cost]
-  slice
-}
-
-status_quo_rob      <- load_robustness_slice(
-  file.path(CONFIG$data_dir, "06_04_sim_informal.rds"), sq_net, sq_cost)
-status_quo_rev_rob  <- load_robustness_slice(
-  file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds"), sq_net, sq_cost)
-status_quo_perf_rob <- load_robustness_slice(
-  file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds"), sq_net, sq_cost)
-
-status_quo_rob[,      Regime := "Status Quo"]
-status_quo_rev_rob[,  Regime := "Negative"]
-status_quo_perf_rob[, Regime := "Positive"]
-
-together <- rbind(status_quo_rob, status_quo_rev_rob, status_quo_perf_rob)
-together[, mean_allocative := (mean_allocative - managers_val_sum[savy_num == 0]$mean_surplus) /
-           (auctions_sum$mean_allocative - managers_val_sum[savy_num == 0]$mean_surplus)]
-
-ggplot(data = together, aes(x = access_cost_mult, y = mean_allocative, color = Regime)) +
-  geom_line(size = 1) + geom_point(size = 2) +
-  geom_vline(xintercept = 1, linetype = "dashed", linewidth = 1) +
-  theme_bw() + ylab('Fraction Max Allocative Efficiency') + xlab('Access Cost Multiplier (M)') +
-  theme(legend.position = "bottom") +
-  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-        axis.title = element_text(size = 30), axis.text = element_text(size = 30),
-        legend.title = element_text(size = 30), legend.text = element_text(size = 30))
-ggsave(file.path(CONFIG$figures_dir, "07_02_access_cost_robustness.png"), width = 12, height = 8, units = "in")
 
 log_complete(success = TRUE)
 message("07_02_compare_sims complete")
