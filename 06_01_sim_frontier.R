@@ -174,17 +174,26 @@ n_steps    <- 6000L
 n_sims <- 2500L
 core_count <- min(parallel::detectCores() - 1L, 50L)
 log_message(paste("Running", n_sims, "simulations on", core_count, "cores"))
+safe_stop_cluster <- function(cluster) {
+  if (is.null(cluster)) return(invisible(NULL))
+  try(parallel::stopCluster(cluster), silent = TRUE)
+  invisible(NULL)
+}
 
 ## Use parLapply (works on Windows, unlike mclapply which falls back to 1 core)
-cl <- makeCluster(core_count)
+## Start workers with --vanilla so PSOCK nodes do not auto-run project .Rprofile.
+cl <- makeCluster(core_count, rscript_args = c("--vanilla"))
 on.exit({
   if (exists("cl") && !is.null(cl)) {
-    try(stopCluster(cl), silent = TRUE)
+    safe_stop_cluster(cl)
   }
 }, add = TRUE)
 
+log_message("Worker cluster started")
 bootstrap_project_cluster(cl, packages = c("data.table", "Rcpp"))
+log_message("Worker libraries loaded")
 clusterSetRNGStream(cl, 477812)
+log_message("Worker RNG streams initialized")
 
 ## Export everything except do_sim: Rcpp-compiled function pointers do not
 ## survive R serialization, so the sim_step symbol captured in do_sim's closure
@@ -263,7 +272,7 @@ for (batch_idx in seq_along(worker_batches)) {
 ## where do_sim is in .GlobalEnv.
 sim_start <- Sys.time()
 results_list <- parLapply(cl, 1:n_sims, function(i) do_sim(i))
-stopCluster(cl)
+safe_stop_cluster(cl)
 cl <- NULL
 
 sim_time <- difftime(Sys.time(), sim_start, units = "mins")
