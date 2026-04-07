@@ -23,7 +23,7 @@ source("run_analysis.R")
 ## Main Entry Points
 
 - `run_prep_data.R`: builds the intermediate data products and network panels.
-- `run_analysis.R`: runs the estimation, descriptive analysis, event studies, and simulations.
+- `run_analysis.R`: runs the estimation, descriptive analysis, event studies, the active `06_01`-`06_05` simulation block, and the simulation-comparison scripts.
 - `run_all.R`: runs `run_prep_data.R` and then `run_analysis.R`.
 
 ## Logging and Conditional Execution
@@ -62,8 +62,10 @@ Run via `source("run_analysis.R")`.
 | 3b | Existing modern DiD scripts (`*_did2s.R`, `*_sunab.R`, `*_cs.R`) | Tier 2 |
 | 4 | `04_01_estimate.R`, `04_02_estimate_many.R` | Tier 2 |
 | 5 | `05_01_display.R`, `05_02_validate_valuations.R`, `05_03_cartel_demographics.R`, `05_04_decomp_pref_network.R`, `05_05_labor_supply.R` | Tier 4 |
-| 6 | `06_01`-`06_06` simulation scripts | Tier 4 |
+| 6 | `06_01`-`06_05` simulation scripts | Tier 4 |
 | 7 | `07_01_heatmap.R`, `07_02_compare_sims.R` | Tier 6 |
+
+Legacy note: `06_99_sim_frontier.R` is kept for optional manual runs, but it is no longer part of `run_analysis.R`. `07_02_compare_sims.R` will use `data/06_99_sim_frontier.rds` only when that file already exists.
 
 ## Configuration
 

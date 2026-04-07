@@ -8,7 +8,7 @@
 #'
 #' Input:  data/04_01_estimate.Rdata        (logit model)
 #'         data/02_01_estimation_sample.rds  (estimation sample)
-#' Output: data/06_01_sim_frontier.rds
+#' Output: data/06_99_sim_frontier.rds
 #' =============================================================================
 
 library('data.table')
@@ -20,7 +20,7 @@ library('Rcpp')
 source('config.R')
 source('utils/logging.R')
 
-log_init("06_01_sim_frontier.R")
+log_init("06_99_sim_frontier.R")
 log_message("Simulating efficiency-equity frontier")
 
 set.seed(477812)
@@ -284,10 +284,10 @@ log_message(paste("Simulations complete:", round(sim_time, 1), "minutes"))
 
 all_res <- rbindlist(results_list)
 
-output_path <- file.path(CONFIG$data_dir, "06_01_sim_frontier.rds")
+output_path <- file.path(CONFIG$data_dir, "06_99_sim_frontier.rds")
 ensure_directory(dirname(output_path))
 saveRDS(all_res, output_path)
 
 log_message(paste("Saved:", output_path, "-", nrow(all_res), "rows"))
 log_complete(success = TRUE)
-message("06_01_sim_frontier complete")
+message("06_99_sim_frontier complete")

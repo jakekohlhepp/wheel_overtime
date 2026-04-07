@@ -159,12 +159,30 @@ if (RUN_EVENT_STUDIES) {
   )
 
   event_outputs <- list(
-    "03_03_termination_did" = file.path(CONFIG$figures_dir, "03_03_termination_twfe.png"),
-    "03_04_new_hire" = file.path(CONFIG$figures_dir, "03_04_new_hire_twfe.png"),
-    "03_05_fmla" = file.path(CONFIG$figures_dir, "03_05_fmla_twfe.png"),
-    "03_06_own_fmla" = file.path(CONFIG$figures_dir, "03_06_own_fmla.png"),
-    "03_07_bereave" = file.path(CONFIG$figures_dir, "03_07_bereave_twfe.png"),
-    "03_08_own_bereave" = file.path(CONFIG$figures_dir, "03_08_own_bereave_twfe.png")
+    "03_03_termination_did" = c(
+      file.path(CONFIG$figures_dir, "03_03_termination_twfe.png"),
+      file.path(CONFIG$data_dir, "03_03_termination_twfe_att.rds")
+    ),
+    "03_04_new_hire" = c(
+      file.path(CONFIG$figures_dir, "03_04_new_hire_twfe.png"),
+      file.path(CONFIG$data_dir, "03_04_new_hire_twfe_att.rds")
+    ),
+    "03_05_fmla" = c(
+      file.path(CONFIG$figures_dir, "03_05_fmla_twfe.png"),
+      file.path(CONFIG$data_dir, "03_05_fmla_twfe_att.rds")
+    ),
+    "03_06_own_fmla" = c(
+      file.path(CONFIG$figures_dir, "03_06_own_fmla.png"),
+      file.path(CONFIG$data_dir, "03_06_own_fmla_twfe_att.rds")
+    ),
+    "03_07_bereave" = c(
+      file.path(CONFIG$figures_dir, "03_07_bereave_twfe.png"),
+      file.path(CONFIG$data_dir, "03_07_bereave_twfe_att.rds")
+    ),
+    "03_08_own_bereave" = c(
+      file.path(CONFIG$figures_dir, "03_08_own_bereave_twfe.png"),
+      file.path(CONFIG$data_dir, "03_08_own_bereave_twfe_att.rds")
+    )
   )
 
   for (script_name in event_scripts) {
@@ -197,6 +215,12 @@ if (RUN_MODERN_DID) {
       if (!file.exists(script_file)) next
 
       output_file <- file.path(CONFIG$figures_dir, paste0(script_name, ".png"))
+      if (suffix == "sunab") {
+        output_file <- c(
+          output_file,
+          file.path(CONFIG$data_dir, paste0(script_name, "_att.rds"))
+        )
+      }
 
       ## did2s scripts are known to fail with did2s 1.0.2 + fixest 0.10.0
       ## (vcov dimension mismatch). Wrap in tryCatch so they do not halt the
@@ -221,6 +245,22 @@ if (RUN_MODERN_DID) {
     }
   }
 
+  sunab_att_files <- file.path(CONFIG$data_dir, paste0(modern_bases, "_sunab_att.rds"))
+  twfe_att_files <- file.path(CONFIG$data_dir, c(
+    "03_03_termination_twfe_att.rds",
+    "03_04_new_hire_twfe_att.rds",
+    "03_05_fmla_twfe_att.rds",
+    "03_06_own_fmla_twfe_att.rds",
+    "03_07_bereave_twfe_att.rds",
+    "03_08_own_bereave_twfe_att.rds"
+  ))
+  run_step("03_10_sunab_summary",
+           "03_10_sunab_summary.R",
+           deps = c("config.R", "utils/sunab_utils.R", "03_10_sunab_summary.R", sunab_att_files, twfe_att_files),
+           outputs = c(
+             file.path(CONFIG$tables_dir, "03_10_staggered_att_peer.tex"),
+             file.path(CONFIG$tables_dir, "03_10_staggered_att_own.tex")
+           ))
 }
 
 #' -----------------------------------------------------------------------------
@@ -286,47 +326,47 @@ if (RUN_EST_ANALYSIS) {
 #' TIER 6: Counterfactual simulations
 #' -----------------------------------------------------------------------------
 
+sim_scripts <- c(
+  "06_01_sim_random",
+  "06_02_auction_sim",
+  "06_03_sim_informal",
+  "06_04_sim_informal_reverse",
+  "06_05_sim_informal_perfect"
+)
+
+sim_outputs <- list(
+  "06_01_sim_random" = c(
+    file.path(CONFIG$data_dir, "06_01_sim_random.rds"),
+    file.path(CONFIG$data_dir, "06_01_sim_random_byworker.rds")
+  ),
+  "06_02_auction_sim" = c(
+    file.path(CONFIG$data_dir, "06_02_sim_auction_dev.rds"),
+    file.path(CONFIG$data_dir, "06_02_sim_auction_dev_markdown.rds"),
+    file.path(CONFIG$data_dir, "06_02_sim_auction_dev_byworker.rds"),
+    file.path(CONFIG$data_dir, "06_02_sim_auction_straight.rds"),
+    file.path(CONFIG$data_dir, "06_02_sim_auction_straight_wage.rds"),
+    file.path(CONFIG$data_dir, "06_02_sim_auction_straight_byworker.rds")
+  ),
+  "06_03_sim_informal" = c(
+    file.path(CONFIG$data_dir, "06_03_sim_informal.rds"),
+    file.path(CONFIG$data_dir, "06_03_sim_informal_byworker.rds")
+  ),
+  "06_04_sim_informal_reverse" = c(
+    file.path(CONFIG$data_dir, "06_04_sim_informal_reverse.rds"),
+    file.path(CONFIG$data_dir, "06_04_sim_informal_reverse_byworker.rds")
+  ),
+  "06_05_sim_informal_perfect" = c(
+    file.path(CONFIG$data_dir, "06_05_sim_informal_perfect.rds"),
+    file.path(CONFIG$data_dir, "06_05_sim_informal_perfect_byworker.rds")
+  )
+)
+
+sim_output_files <- unlist(sim_outputs, use.names = FALSE)
+optional_frontier_path <- file.path(CONFIG$data_dir, "06_99_sim_frontier.rds")
+
 if (RUN_SIMULATIONS) {
-  run_step("06_01_sim_frontier",
-           "06_01_sim_frontier.R",
-           deps = c("config.R", "06_01_sim_frontier.R", est_sample_path, estimate_path),
-           outputs = file.path(CONFIG$data_dir, "06_01_sim_frontier.rds"))
-
-  sim_scripts <- c(
-    "06_02_sim_random",
-    "06_03_auction_sim",
-    "06_04_sim_informal",
-    "06_05_sim_informal_reverse",
-    "06_06_sim_informal_perfect"
-  )
-
-  sim_outputs <- list(
-    "06_02_sim_random" = c(
-      file.path(CONFIG$data_dir, "06_02_sim_random.rds"),
-      file.path(CONFIG$data_dir, "06_02_sim_random_byworker.rds")
-    ),
-    "06_03_auction_sim" = c(
-      file.path(CONFIG$data_dir, "06_03_sim_auction_dev.rds"),
-      file.path(CONFIG$data_dir, "06_03_sim_auction_dev_markdown.rds"),
-      file.path(CONFIG$data_dir, "06_03_sim_auction_dev_byworker.rds"),
-      file.path(CONFIG$data_dir, "06_03_sim_auction_straight.rds"),
-      file.path(CONFIG$data_dir, "06_03_sim_auction_straight_wage.rds"),
-      file.path(CONFIG$data_dir, "06_03_sim_auction_straight_byworker.rds")
-    ),
-    "06_04_sim_informal" = c(
-      file.path(CONFIG$data_dir, "06_04_sim_informal.rds"),
-      file.path(CONFIG$data_dir, "06_04_sim_informal_byworker.rds")
-    ),
-    "06_05_sim_informal_reverse" = c(
-      file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds"),
-      file.path(CONFIG$data_dir, "06_05_sim_informal_reverse_byworker.rds")
-    ),
-    "06_06_sim_informal_perfect" = c(
-      file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds"),
-      file.path(CONFIG$data_dir, "06_06_sim_informal_perfect_byworker.rds")
-    )
-  )
-
+  ## Legacy frontier script 06_99_sim_frontier.R is kept for manual use,
+  ## but the numbered analysis pipeline now runs the active 06_01-06_05 block only.
   for (script_name in sim_scripts) {
     script_file <- paste0(script_name, ".R")
     run_step(script_name, script_file,
@@ -339,6 +379,11 @@ if (RUN_SIMULATIONS) {
 #' TIER 7: Simulation comparison
 #' -----------------------------------------------------------------------------
 
+tier7_sim_deps <- sim_output_files
+if (file.exists(optional_frontier_path)) {
+  tier7_sim_deps <- c(tier7_sim_deps, optional_frontier_path)
+}
+
 if (RUN_SIM_COMPARE) {
   heatmap_outputs <- c(
     file.path(CONFIG$figures_dir, "07_01_heatmap_continuous.png"),
@@ -348,12 +393,12 @@ if (RUN_SIM_COMPARE) {
 
   run_step("07_01_heatmap",
            "07_01_heatmap.R",
-           deps = c("config.R", "07_01_heatmap.R", est_sample_path, estimate_path),
+           deps = c("config.R", "07_01_heatmap.R", est_sample_path, estimate_path, tier7_sim_deps),
            outputs = heatmap_outputs)
 
   run_step("07_02_compare_sims",
            "07_02_compare_sims.R",
-           deps = c("config.R", "07_02_compare_sims.R", est_sample_path, estimate_path))
+           deps = c("config.R", "07_02_compare_sims.R", est_sample_path, estimate_path, tier7_sim_deps))
 }
 
 #' -----------------------------------------------------------------------------
@@ -378,3 +423,4 @@ for (name in names(pipeline_results)) {
   }
   message(sprintf("  %s: %s", name, status_str))
 }
+

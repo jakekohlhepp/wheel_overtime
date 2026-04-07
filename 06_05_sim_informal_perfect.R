@@ -5,8 +5,8 @@
 #' Vary access costs and network reduction parameters.
 #' Input:  file.path(CONFIG$data_dir, "04_01_estimate.Rdata")
 #'         file.path(CONFIG$data_dir, "02_01_estimation_sample.rds")
-#' Output: file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds")
-#'         file.path(CONFIG$data_dir, "06_06_sim_informal_perfect_byworker.rds")
+#' Output: file.path(CONFIG$data_dir, "06_05_sim_informal_perfect.rds")
+#'         file.path(CONFIG$data_dir, "06_05_sim_informal_perfect_byworker.rds")
 #' =============================================================================
 
 library('data.table')
@@ -16,7 +16,7 @@ library('parallel')
 
 source('config.R')
 source('utils/logging.R')
-log_init("06_06_sim_informal_perfect.R")
+log_init("06_05_sim_informal_perfect.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA
@@ -108,7 +108,8 @@ run_one_cell_perfect <- function(cell_idx, ap, grid, max_iter, beta_sr, beta_nw,
                                (ot_rate * beta_ot + opp_dist * cost + mod_suppliers_interacted * net)) / beta_ot]
     dt[, sim_value := sim_work * true_valuation]
     dt[, sim_payment := fifelse(tot_ot_among > 0L, sim_win_wage * sim_work * all_othours / tot_ot_among, 0)]
-    dt[, worker_surplus := sim_work * true_valuation]
+    dt[, worker_surplus := sim_work * (true_valuation + sim_win_wage +
+                               (opp_dist * cost + mod_suppliers_interacted * net) / beta_ot)]
 
     byemp <- dt[, .(ot_tot = sum(sim_work)), by = "num_emp1"]
     setorder(byemp, "ot_tot", "num_emp1")
@@ -118,6 +119,7 @@ run_one_cell_perfect <- function(cell_idx, ap, grid, max_iter, beta_sr, beta_nw,
     stopifnot(nrow(byemp[is_90th == TRUE]) == 1)
 
     res_list[[iter]] <- data.table(network_reduction = net, access_cost = cost, sim_num = iter,
+                                   allocative_efficiency = sum(dt$sim_value),
                                    worker_value = sum(dt$sim_value),
                                    worker_surplus = sum(dt$worker_surplus),
                                    wage_bill = sum(dt$sim_payment),
@@ -161,7 +163,9 @@ rm(out); gc()
 
 ensure_directory(CONFIG$data_dir)
 log_message("Saving perfect alignment informal trade simulation results")
-saveRDS(results, file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds"))
-saveRDS(results_byworker, file.path(CONFIG$data_dir, "06_06_sim_informal_perfect_byworker.rds"))
+saveRDS(results, file.path(CONFIG$data_dir, "06_05_sim_informal_perfect.rds"))
+saveRDS(results_byworker, file.path(CONFIG$data_dir, "06_05_sim_informal_perfect_byworker.rds"))
 
 log_complete(success = TRUE)
+
+

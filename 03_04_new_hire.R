@@ -4,10 +4,12 @@
 #' Input:  data/02_01_estimation_sample.rds
 #'         Contact matrix via load_contact_matrix()
 #' Output: out/figures/03_04_new_hire_twfe.png
+#'         data/03_04_new_hire_twfe_att.rds
 #' =============================================================================
 
 source('config.R')
 source('utils/logging.R')
+source('utils/sunab_utils.R')
 log_init("03_04_new_hire.R")
 
 #' ---------------------------------------------------------------------------
@@ -71,15 +73,33 @@ all_pairs[, rel_time := analysis_workdate - first_treat]
 #' ---------------------------------------------------------------------------
 
 log_message("Estimating TWFE model")
+twfe_att <- feols(
+  l_degree ~ treat | num_emp1 + analysis_workdate,
+  data = all_pairs[does_hire == 0],
+  cluster = ~num_emp1
+)
+att_result <- save_twfe_att(
+  twfe_att,
+  file.path(CONFIG$data_dir, "03_04_new_hire_twfe_att.rds"),
+  specification = "New Hire (Peer)",
+  effect_type = "peer"
+)
+log_message(sprintf(
+  "Estimated TWFE ATT = %.3f (SE = %.3f, p = %s)",
+  att_result$estimate,
+  att_result$std_error,
+  format_p_value(att_result$p_value)
+))
+
 ## Exclude the new hires themselves from the regression. We are estimating the
 ## peer effect of a new hire's arrival on incumbent officers' connectedness.
 ## Including the new hire (does_hire == 1) would mix the peer effect with the
 ## mechanical change in the new hire's own degree as they join the network.
-twfe <- feols(l_degree ~ i(rel_time, ref = -c(1, Inf)) | num_emp1 + analysis_workdate, data = all_pairs[does_hire == 0], cluster = ~num_emp1)
+twfe_es <- feols(l_degree ~ i(rel_time, ref = -c(1, Inf)) | num_emp1 + analysis_workdate, data = all_pairs[does_hire == 0], cluster = ~num_emp1)
 
 ensure_directory(CONFIG$figures_dir)
 png(file.path(CONFIG$figures_dir, "03_04_new_hire_twfe.png"), width = 900, height = 500)
-iplot(twfe, main = "", xlab = "Time to Treatment (Days)", ylab = "Connectedness",
+iplot(twfe_es, main = "", xlab = "Time to Treatment (Days)", ylab = "Connectedness",
       drop = "([3-9]\\d{1}|\\d{3})", lab.fit = "simple")
 dev.off()
 

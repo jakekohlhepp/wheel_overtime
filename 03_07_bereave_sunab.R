@@ -4,10 +4,12 @@
 #' Input:  data/02_01_estimation_sample.rds
 #'         Contact matrix via load_contact_matrix()
 #' Output: out/figures/03_07_bereave_sunab.png
+#'         data/03_07_bereave_sunab_att.rds
 #' =============================================================================
 
 source('config.R')
 source('utils/logging.R')
+source('utils/sunab_utils.R')
 log_init("03_07_bereave_sunab.R")
 
 #' ---------------------------------------------------------------------------
@@ -91,11 +93,25 @@ log_message("Estimating Sun & Abraham model")
 ## Event study using Sun & Abraham interaction-weighted estimator
 sa_es <- feols(l_degree ~ sunab(cohort_week, week, ref.p = c(-1, .F)) | num_emp1 + week, data = weekly, cluster = ~num_emp1)
 
-ensure_directory(CONFIG$figures_dir)
-png(file.path(CONFIG$figures_dir, "03_07_bereave_sunab.png"), width = 900, height = 500)
-iplot(sa_es, main = "", xlab = "Time to Treatment (Weeks)", ylab = "Connectedness",
-      drop = "([5-9]\\d{0}|[1-9]\\d{1,})", lab.fit = "simple")
-dev.off()
+att_result <- save_sunab_att(
+  sa_es,
+  file.path(CONFIG$data_dir, "03_07_bereave_sunab_att.rds"),
+  specification = "Bereavement (Peer)",
+  effect_type = "peer"
+)
+log_message(sprintf(
+  "Estimated ATT = %.3f (SE = %.3f, p = %s)",
+  att_result$estimate,
+  att_result$std_error,
+  format_p_value(att_result$p_value)
+))
+
+plot_sunab_event_study(
+  sa_es,
+  file.path(CONFIG$figures_dir, "03_07_bereave_sunab.png"),
+  xlab = "Time to Treatment (Weeks)",
+  ylab = "Connectedness"
+)
 
 log_message("03_07_bereave_sunab.R completed successfully")
 log_complete(success = TRUE)

@@ -3,10 +3,12 @@
 #' =============================================================================
 #' Input:  data/02_01_estimation_sample.rds
 #' Output: out/figures/03_08_own_bereave_sunab.png
+#'         data/03_08_own_bereave_sunab_att.rds
 #' =============================================================================
 
 source('config.R')
 source('utils/logging.R')
+source('utils/sunab_utils.R')
 log_init("03_08_own_bereave_sunab.R")
 
 #' ---------------------------------------------------------------------------
@@ -68,18 +70,28 @@ weekly <- est_data[, .(wheel_degree = mean(wheel_degree, na.rm = TRUE),
 
 log_message("Estimating Sun & Abraham models")
 
-## Pooled treatment effect (on weekly data)
-sa_pool <- feols(wheel_degree ~ treat | num_emp1 + week, data = weekly, cluster = ~num_emp1)
-summary(sa_pool)
-
 ## Event study using Sun & Abraham interaction-weighted estimator
 sa_es <- feols(wheel_degree ~ sunab(cohort_week, week, ref.p = c(0, .F)) | num_emp1 + week, data = weekly, cluster = ~num_emp1)
 
-ensure_directory(CONFIG$figures_dir)
-png(file.path(CONFIG$figures_dir, "03_08_own_bereave_sunab.png"), width = 900, height = 500)
-iplot(sa_es, main = "", xlab = "Time to Bereavement (Weeks)", ylab = "Potential Supplier Count",
-      drop = "([5-9]\\d{0}|[1-9]\\d{1,})", lab.fit = "simple")
-dev.off()
+att_result <- save_sunab_att(
+  sa_es,
+  file.path(CONFIG$data_dir, "03_08_own_bereave_sunab_att.rds"),
+  specification = "Bereavement (Own)",
+  effect_type = "own"
+)
+log_message(sprintf(
+  "Estimated ATT = %.3f (SE = %.3f, p = %s)",
+  att_result$estimate,
+  att_result$std_error,
+  format_p_value(att_result$p_value)
+))
+
+plot_sunab_event_study(
+  sa_es,
+  file.path(CONFIG$figures_dir, "03_08_own_bereave_sunab.png"),
+  xlab = "Time to Bereavement (Weeks)",
+  ylab = "Potential Supplier Count"
+)
 
 log_message("03_08_own_bereave_sunab.R completed successfully")
 log_complete(success = TRUE)

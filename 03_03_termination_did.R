@@ -4,10 +4,12 @@
 #' Input:  data/02_01_estimation_sample.rds
 #'         Contact matrix via load_contact_matrix()
 #' Output: out/figures/03_03_termination_twfe.png
+#'         data/03_03_termination_twfe_att.rds
 #' =============================================================================
 
 source('config.R')
 source('utils/logging.R')
+source('utils/sunab_utils.R')
 log_init("03_03_termination_did.R")
 
 #' ---------------------------------------------------------------------------
@@ -70,14 +72,26 @@ log_message("Estimating TWFE models")
 ## mechanically as they exit. Including does_term == 1 officers would confound
 ## the peer effect estimate with the mechanical drop in the departing officer's
 ## own degree at termination.
-twfe <- feols(degree ~ treat | num_emp1 + analysis_workdate, data = all_pairs[does_term == 0])
-summary(twfe)
+twfe_att <- feols(degree ~ treat | num_emp1 + analysis_workdate, data = all_pairs[does_term == 0])
+att_result <- save_twfe_att(
+  twfe_att,
+  file.path(CONFIG$data_dir, "03_03_termination_twfe_att.rds"),
+  specification = "Termination (Peer)",
+  effect_type = "peer"
+)
+log_message(sprintf(
+  "Estimated TWFE ATT = %.3f (SE = %.3f, p = %s)",
+  att_result$estimate,
+  att_result$std_error,
+  format_p_value(att_result$p_value)
+))
+summary(twfe_att)
 
-twfe <- feols(degree ~ i(rel_time, ref = -c(1, Inf)) | num_emp1 + analysis_workdate, data = all_pairs[does_term == 0])
+twfe_es <- feols(degree ~ i(rel_time, ref = -c(1, Inf)) | num_emp1 + analysis_workdate, data = all_pairs[does_term == 0])
 
 ensure_directory(CONFIG$figures_dir)
 png(file.path(CONFIG$figures_dir, "03_03_termination_twfe.png"), width = 900, height = 500)
-iplot(twfe, main = "", xlab = "Time to Treatment (Days)", ylab = "Connectedness",
+iplot(twfe_es, main = "", xlab = "Time to Treatment (Days)", ylab = "Connectedness",
       drop = "([3-9]\\d{1}|\\d{3})", lab.fit = "simple")
 dev.off()
 

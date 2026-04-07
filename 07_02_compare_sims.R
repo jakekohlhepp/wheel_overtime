@@ -8,17 +8,17 @@
 #'
 #' Input:  data/04_01_estimate.Rdata               (logit model)
 #'         data/02_01_estimation_sample.rds         (estimation sample)
-#'         data/06_04_sim_informal.rds              (status quo sim)
-#'         data/06_03_sim_auction_straight.rds      (uniform-wage auction)
-#'         data/06_03_sim_auction_dev.rds           (uniform-markdown auction)
-#'         data/06_01_sim_frontier.rds      (random assignment frontier)
-#'         data/06_03_sim_auction_dev_markdown.rds  (markdown by date)
-#'         data/06_03_sim_auction_straight_wage.rds (wage by date)
-#'         data/06_04_sim_informal_byworker.rds     (worker-level informal)
-#'         data/06_03_sim_auction_dev_byworker.rds  (worker-level markdown)
-#'         data/06_03_sim_auction_straight_byworker.rds (worker-level wage)
-#'         data/06_05_sim_informal_reverse.rds      (reverse access costs)
-#'         data/06_06_sim_informal_perfect.rds      (perfect access)
+#'         data/06_03_sim_informal.rds              (status quo sim)
+#'         data/06_02_sim_auction_straight.rds      (uniform-wage auction)
+#'         data/06_02_sim_auction_dev.rds           (uniform-markdown auction)
+#'         data/06_99_sim_frontier.rds               (optional frontier overlay)
+#'         data/06_02_sim_auction_dev_markdown.rds  (markdown by date)
+#'         data/06_02_sim_auction_straight_wage.rds (wage by date)
+#'         data/06_03_sim_informal_byworker.rds     (worker-level informal)
+#'         data/06_02_sim_auction_dev_byworker.rds  (worker-level markdown)
+#'         data/06_02_sim_auction_straight_byworker.rds (worker-level wage)
+#'         data/06_04_sim_informal_reverse.rds      (reverse access costs)
+#'         data/06_05_sim_informal_perfect.rds      (perfect access)
 #' Output: out/figures/07_02_*.png
 #'         out/tables/07_02_*.tex
 #' =============================================================================
@@ -46,6 +46,13 @@ all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 ## Average OT hours per shift
 avg_ot_hours <- sum(all_pairs$varot_hours) / sum(all_pairs$ot_work)
 
+standardize_sim_results <- function(dt) {
+  if (!"allocative_efficiency" %in% names(dt)) {
+    dt[, allocative_efficiency := worker_value]
+  }
+  dt
+}
+
 officer_fe <- data.table(officer_fe = getFEs(mod_mod)$num_emp1, num_emp1 = as.numeric(names(getFEs(mod_mod)$num_emp1)))
 all_pairs <- merge(all_pairs, officer_fe, by = "num_emp1", all.x = TRUE)
 date_fe <- data.table(date_fe = getFEs(mod_mod)$analysis_workdate, analysis_workdate = as.Date(names(getFEs(mod_mod)$analysis_workdate)))
@@ -64,43 +71,57 @@ sq_net  <- unname(coef(mod_mod)["suppliers_interacted"])
 sq_cost <- unname(coef(mod_mod)["opp_dist"])
 
 ## Status quo (informal trading) - filter to the grid cell with estimated params
-status_quo <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal.rds"))
-status_quo[, worker_value := worker_value * avg_ot_hours]
+status_quo <- standardize_sim_results(readRDS(file.path(CONFIG$data_dir, "06_03_sim_informal.rds")))
+status_quo[, allocative_efficiency := allocative_efficiency * avg_ot_hours]
+status_quo[, worker_surplus := worker_surplus * avg_ot_hours]
 status_quo <- status_quo[network_reduction == sq_net & access_cost == sq_cost, ]
 status_quo[, c("network_reduction", "access_cost") := NULL]
-status_quo[, worker_surplus := worker_surplus * avg_ot_hours]
 status_quo_sum <- status_quo[, .(mean_ineq = mean(share_top10),
-                                 mean_allocative = mean(worker_value),
+                                 mean_allocative = mean(allocative_efficiency),
                                  mean_wage_bill = mean(wage_bill),
                                  mean_workersurplus = mean(worker_surplus))]
 
 ## Uniform-wage auction
-auctions <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_straight.rds"))
-auctions[, worker_value := worker_value * avg_ot_hours]
+auctions <- standardize_sim_results(readRDS(file.path(CONFIG$data_dir, "06_02_sim_auction_straight.rds")))
+auctions[, allocative_efficiency := allocative_efficiency * avg_ot_hours]
 auctions[, worker_surplus := worker_surplus * avg_ot_hours]
 auctions_sum <- auctions[, .(mean_ineq = mean(share_top10),
-                              mean_allocative = mean(worker_value),
-                              mean_wage_bill = mean(wage_bill),
-                              mean_workersurplus = mean(worker_surplus))]
+                             mean_allocative = mean(allocative_efficiency),
+                             mean_wage_bill = mean(wage_bill),
+                             mean_workersurplus = mean(worker_surplus))]
 
 ## Uniform-markdown auction
-auctions_dev <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_dev.rds"))
-auctions_dev[, worker_value := worker_value * avg_ot_hours]
+auctions_dev <- standardize_sim_results(readRDS(file.path(CONFIG$data_dir, "06_02_sim_auction_dev.rds")))
+auctions_dev[, allocative_efficiency := allocative_efficiency * avg_ot_hours]
 auctions_dev[, worker_surplus := worker_surplus * avg_ot_hours]
 auctions_dev_sum <- auctions_dev[, .(mean_ineq = mean(share_top10),
-                                      mean_allocative = mean(worker_value),
-                                      mean_wage_bill = mean(wage_bill),
-                                      mean_workersurplus = mean(worker_surplus))]
+                                     mean_allocative = mean(allocative_efficiency),
+                                     mean_wage_bill = mean(wage_bill),
+                                     mean_workersurplus = mean(worker_surplus))]
 
 ## Random assignment
-random_assignment <- readRDS(file.path(CONFIG$data_dir, "06_02_sim_random.rds"))
-random_assignment[, worker_value := worker_value * avg_ot_hours]
+random_assignment <- standardize_sim_results(readRDS(file.path(CONFIG$data_dir, "06_01_sim_random.rds")))
+random_assignment[, allocative_efficiency := allocative_efficiency * avg_ot_hours]
 random_assignment[, worker_surplus := worker_surplus * avg_ot_hours]
+random_assignment_sum <- random_assignment[, .(
+  mean_ineq = mean(share_top10),
+  mean_allocative = mean(allocative_efficiency),
+  mean_wage_bill = mean(wage_bill),
+  mean_workersurplus = mean(worker_surplus)
+)]
 
-## Random assignment frontier
-managers_val <- readRDS(file.path(CONFIG$data_dir, "06_01_sim_frontier.rds"))
-managers_val_sum <- managers_val[, .(mean_surplus = mean(worker_value) * avg_ot_hours,
-                                     mean_ineq = mean(share_top10)), by = "savy_num"]
+## Optional random-assignment frontier from the legacy off-pipeline script
+frontier_path <- file.path(CONFIG$data_dir, "06_99_sim_frontier.rds")
+frontier_available <- file.exists(frontier_path)
+if (frontier_available) {
+  managers_val <- standardize_sim_results(readRDS(frontier_path))
+  managers_val_sum <- managers_val[, .(
+    mean_allocative = mean(allocative_efficiency) * avg_ot_hours,
+    mean_ineq = mean(share_top10)
+  ), by = "savy_num"]
+} else {
+  log_message("Optional frontier file not found; proceeding without the frontier overlay", "WARN")
+}
 
 #' -----------------------------------------------------------------------------
 #' MARKDOWN AND WAGE PLOTS BY DATE
@@ -109,7 +130,7 @@ managers_val_sum <- managers_val[, .(mean_surplus = mean(worker_value) * avg_ot_
 ensure_directory(CONFIG$figures_dir)
 ensure_directory(CONFIG$tables_dir)
 
-results_wage <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_dev_markdown.rds"))
+results_wage <- readRDS(file.path(CONFIG$data_dir, "06_02_sim_auction_dev_markdown.rds"))
 results_wage <- results_wage[, .(mean_wage = mean(sim_markdown)), by = "analysis_workdate"]
 
 ggplot(data = results_wage, aes(x = analysis_workdate, y = mean_wage)) +
@@ -120,7 +141,7 @@ ggplot(data = results_wage, aes(x = analysis_workdate, y = mean_wage)) +
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
 ggsave(file.path(CONFIG$figures_dir, "07_02_markdowns_bydate.png"), width = 12, height = 8, units = "in")
 
-results_wage <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_straight_wage.rds"))
+results_wage <- readRDS(file.path(CONFIG$data_dir, "06_02_sim_auction_straight_wage.rds"))
 results_wage <- results_wage[, .(mean_wage = -mean(sim_win_wage)), by = "analysis_workdate"]
 
 ggplot(data = results_wage, aes(x = analysis_workdate, y = mean_wage)) +
@@ -135,48 +156,56 @@ ggsave(file.path(CONFIG$figures_dir, "07_02_uniformwages_bydate.png"), width = 1
 #' EQUITY-EFFICIENCY FRONTIER
 #' -----------------------------------------------------------------------------
 
-## Bundle the three scenario points into a tidy data frame so ggplot handles
-## colors, shapes, and the legend automatically - no more hardcoded offsets.
+## Bundle the scenario points into a tidy data frame so ggplot handles
+## colors, shapes, and labels consistently. The legacy frontier curve is
+## added only when the optional 06_99 output is available.
 scenario_pts <- data.frame(
-  mean_allocative = c(auctions_sum$mean_allocative,
+  mean_allocative = c(random_assignment_sum$mean_allocative,
+                      auctions_sum$mean_allocative,
                       auctions_dev_sum$mean_allocative,
                       status_quo_sum$mean_allocative),
-  mean_ineq       = c(auctions_sum$mean_ineq,
+  mean_ineq       = c(random_assignment_sum$mean_ineq,
+                      auctions_sum$mean_ineq,
                       auctions_dev_sum$mean_ineq,
                       status_quo_sum$mean_ineq),
-  label           = c("Uniform-Wage Auction",
+  label           = c("Random Assignment",
+                      "Uniform-Wage Auction",
                       "Uniform-Markdown Auction",
                       "Informal Trade")
 )
 
 scenario_colors <- c(
-  "Uniform-Wage Auction"     = "#2166ac",   # blue
-  "Uniform-Markdown Auction" = "#1a9641",   # green
-  "Informal Trade"           = "#d73027"    # red
+  "Random Assignment"       = "grey25",
+  "Uniform-Wage Auction"     = "#2166ac",
+  "Uniform-Markdown Auction" = "#1a9641",
+  "Informal Trade"           = "#d73027"
 )
 
-## Manual label nudges - Informal Trade & Markdown are very close, so
-## stagger labels to avoid overlap.
+## Manual label nudges keep the four labels from colliding in the main plot.
 scenario_pts$nudge_x <- 0
 scenario_pts$nudge_y <- 0
-scenario_pts$nudge_y[scenario_pts$label == "Uniform-Wage Auction"]     <-  0.02
-scenario_pts$nudge_x[scenario_pts$label == "Uniform-Wage Auction"]     <-  50000
-scenario_pts$nudge_y[scenario_pts$label == "Informal Trade"]           <- -0.025
-scenario_pts$nudge_x[scenario_pts$label == "Informal Trade"]           <- -200000
+scenario_pts$nudge_y[scenario_pts$label == "Random Assignment"]       <- -0.02
+scenario_pts$nudge_x[scenario_pts$label == "Random Assignment"]       <-  60000
+scenario_pts$nudge_y[scenario_pts$label == "Uniform-Wage Auction"]    <-  0.02
+scenario_pts$nudge_x[scenario_pts$label == "Uniform-Wage Auction"]    <-  50000
+scenario_pts$nudge_y[scenario_pts$label == "Informal Trade"]          <- -0.025
+scenario_pts$nudge_x[scenario_pts$label == "Informal Trade"]          <- -200000
 scenario_pts$nudge_y[scenario_pts$label == "Uniform-Markdown Auction"] <-  0.025
 scenario_pts$nudge_x[scenario_pts$label == "Uniform-Markdown Auction"] <- -200000
 
-ggplot() +
-  ## frontier curve - thin, grey, behind the points
-  geom_line(data = managers_val_sum[, c("mean_surplus", "mean_ineq")],
-            aes(x = mean_surplus, y = mean_ineq),
-            colour = "grey40", linewidth = 1, linetype = "solid") +
-  ## scenario points - sized and colored by scenario
+p_equity <- ggplot()
+if (frontier_available) {
+  p_equity <- p_equity +
+    geom_line(data = managers_val_sum[, c("mean_allocative", "mean_ineq")],
+              aes(x = mean_allocative, y = mean_ineq),
+              colour = "grey40", linewidth = 1, linetype = "solid")
+}
+
+p_equity <- p_equity +
   geom_point(data = scenario_pts,
              aes(x = mean_allocative, y = mean_ineq,
                  colour = label, fill = label),
              shape = 21, size = 5, stroke = 1.2) +
-  ## scenario labels - manually nudged to avoid overlap
   geom_text(data = scenario_pts,
             aes(x = mean_allocative + nudge_x,
                 y = mean_ineq + nudge_y,
@@ -199,14 +228,22 @@ ggplot() +
     legend.position   = "none",
     plot.margin       = margin(20, 60, 10, 10)
   )
-ggsave(file.path(CONFIG$figures_dir, "07_02_equity_efficiency.png"),
-       width = 10, height = 7, units = "in", dpi = 300)
 
-## Differences between random and max
-print(managers_val_sum[savy_num == 0]$mean_surplus - auctions_sum$mean_allocative)
-print(managers_val_sum[savy_num == 0]$mean_surplus - status_quo_sum$mean_allocative)
-print((managers_val_sum[savy_num == 0]$mean_surplus - status_quo_sum$mean_allocative) /
-        (managers_val_sum[savy_num == 0]$mean_surplus - auctions_sum$mean_allocative))
+ggsave(file.path(CONFIG$figures_dir, "07_02_equity_efficiency.png"),
+       plot = p_equity, width = 10, height = 7, units = "in", dpi = 300)
+
+if (frontier_available) {
+  log_message(sprintf("Frontier gap vs uniform-wage auction: %.0f",
+                      managers_val_sum[savy_num == 0]$mean_allocative - auctions_sum$mean_allocative))
+  log_message(sprintf("Frontier gap vs informal trade: %.0f",
+                      managers_val_sum[savy_num == 0]$mean_allocative - status_quo_sum$mean_allocative))
+  log_message(sprintf("Frontier-share statistic: %.4f",
+                      (managers_val_sum[savy_num == 0]$mean_allocative - status_quo_sum$mean_allocative) /
+                      (managers_val_sum[savy_num == 0]$mean_allocative - auctions_sum$mean_allocative)))
+} else {
+  log_message("Skipped frontier-gap summaries because 06_99_sim_frontier.rds is not present", "WARN")
+}
+
 
 #' -----------------------------------------------------------------------------
 #' AGGREGATE HISTOGRAMS
@@ -221,18 +258,18 @@ ggplot(all_auctions, aes(x = share_top10, fill = a_type)) +
   geom_histogram(position = "identity", alpha = 0.8, bins = 100) +
   xlab("Top 10% Share of Overtime") + ylab("Simulation Count") +
   theme_bw() + guides(fill = guide_legend(title = "Assignment Mechanism")) +
-  geom_vline(xintercept = status_quo$ineq, linetype = "dashed", linewidth = 1) +
+  geom_vline(xintercept = status_quo_sum$mean_ineq, linetype = "dashed", linewidth = 1) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
 ggsave(file.path(CONFIG$figures_dir, "07_02_inequality_hist.png"), width = 12, height = 8, units = "in")
 
-ggplot(all_auctions, aes(x = worker_value, fill = a_type)) +
+ggplot(all_auctions, aes(x = allocative_efficiency, fill = a_type)) +
   geom_histogram(position = "identity", alpha = 0.8, bins = 100) +
-  xlab("Worker Non-Wage Utility ($)") + ylab("Simulation Count") +
+  xlab("Allocative Efficiency ($)") + ylab("Simulation Count") +
   scale_x_continuous(labels = function(l) { paste0(round(l / 1e6, 2), "m") }) +
-  theme_bw() + guides(fill = guide_legend(title = "Auction Type")) +
-  geom_vline(xintercept = status_quo$allocative, linetype = "dashed", size = 1) +
+  theme_bw() + guides(fill = guide_legend(title = "Assignment Mechanism")) +
+  geom_vline(xintercept = status_quo_sum$mean_allocative, linetype = "dashed", size = 1) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),
         legend.title = element_text(size = 15), legend.text = element_text(size = 15))
@@ -271,7 +308,7 @@ summary_auctions <- rbindlist(list(
 fortable <- summary_auctions[, .(
   p5_wage_bill = quantile(wage_bill, p = 0.05), mean_wage_bill = mean(wage_bill), p95_wage_bill = quantile(wage_bill, p = 0.95),
   p5_worker_surplus = quantile(worker_surplus, p = 0.05), mean_worker_surplus = mean(worker_surplus), p95_worker_surplus = quantile(worker_surplus, p = 0.95),
-  p5_worker_value = quantile(worker_value, p = 0.05), mean_worker_value = mean(worker_value), p95_worker_value = quantile(worker_value, p = 0.95),
+  p5_allocative = quantile(allocative_efficiency, p = 0.05), mean_allocative = mean(allocative_efficiency), p95_allocative = quantile(allocative_efficiency, p = 0.95),
   p5_share_top10 = quantile(share_top10, p = 0.05), mean_share_top10 = mean(share_top10), p95_share_top10 = quantile(share_top10, p = 0.95)
 ), by = "a_type"]
 
@@ -288,9 +325,9 @@ fortable[, p5_wage_bill := paste0("\\$", format(round(as.numeric(p5_wage_bill), 
 fortable[, mean_wage_bill := paste0("\\$", format(round(as.numeric(mean_wage_bill), 0), nsmall = 0, big.mark = ","))]
 fortable[, p95_wage_bill := paste0("\\$", format(round(as.numeric(p95_wage_bill), 0), nsmall = 0, big.mark = ","))]
 
-fortable[, p5_worker_value := paste0("\\$", format(round(as.numeric(p5_worker_value), 0), nsmall = 0, big.mark = ","))]
-fortable[, mean_worker_value := paste0("\\$", format(round(as.numeric(mean_worker_value), 0), nsmall = 0, big.mark = ","))]
-fortable[, p95_worker_value := paste0("\\$", format(round(as.numeric(p95_worker_value), 0), nsmall = 0, big.mark = ","))]
+fortable[, p5_allocative := paste0("\\$", format(round(as.numeric(p5_allocative), 0), nsmall = 0, big.mark = ","))]
+fortable[, mean_allocative := paste0("\\$", format(round(as.numeric(mean_allocative), 0), nsmall = 0, big.mark = ","))]
+fortable[, p95_allocative := paste0("\\$", format(round(as.numeric(p95_allocative), 0), nsmall = 0, big.mark = ","))]
 
 setnames(fortable, "a_type", "Assignment Mechanism")
 colnames(fortable)[-1] <- rep(c("p5", "Mean", "p95"), 4)
@@ -309,17 +346,17 @@ kable(fortable[, .SD, .SDcols = c(1, 8:13)], "latex", align = "c", booktabs = TR
 
 ## By-worker data only contains the status-quo cell (06_04 optimization),
 ## so no grid filter needed here.
-status_quo_byemp <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal_byworker.rds"))
+status_quo_byemp <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_informal_byworker.rds"))
 status_quo_byemp_sum <- status_quo_byemp[, .(s_surplus = mean(worker_surplus * avg_ot_hours),
                                               s_otpay = mean(total_ot_pay),
                                               s_totalot = mean(total_ot)), by = "num_emp1"]
 
-auction_dev_byemp <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_dev_byworker.rds"))
+auction_dev_byemp <- readRDS(file.path(CONFIG$data_dir, "06_02_sim_auction_dev_byworker.rds"))
 auction_dev_byemp_sum <- auction_dev_byemp[, .(m_surplus = mean(worker_surplus * avg_ot_hours),
                                                 m_otpay = mean(total_ot_pay),
                                                 m_totalot = mean(total_ot)), by = "num_emp1"]
 
-auction_byemp <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_straight_byworker.rds"))
+auction_byemp <- readRDS(file.path(CONFIG$data_dir, "06_02_sim_auction_straight_byworker.rds"))
 auction_byemp_sum <- auction_byemp[, .(a_surplus = mean(worker_surplus * avg_ot_hours),
                                         a_otpay = mean(total_ot_pay),
                                         a_totalot = mean(total_ot)), by = "num_emp1"]
@@ -354,7 +391,7 @@ ggplot(all_auctions_byemp, aes(x = frank(avg_degree), y = frank(officer_fe), col
 ggplot(all_auctions_byemp,
        aes(x = reorder(num_emp1, frank(-officer_fe)), y = as_ot)) +
   geom_bar(stat = "identity") + theme_bw() +
-  ylab('Individual worker Surplus Change ($)') + xlab('Officer Fixed Effect Rank') +
+  ylab('Individual Worker Overtime Change') + xlab('Officer Fixed Effect Rank') +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),
@@ -364,7 +401,7 @@ ggplot(all_auctions_byemp,
 ggplot(all_auctions_byemp,
        aes(x = reorder(num_emp1, frank(-officer_fe)), y = as_surplus)) +
   geom_bar(stat = "identity") + theme_bw() +
-  ylab('Individual Worker Overtime Change') + xlab('Officer Fixed Effect Rank') +
+  ylab('Individual Worker Surplus Change ($)') + xlab('Officer Fixed Effect Rank') +
   theme(axis.text.x = element_blank(), axis.ticks.x = element_blank()) +
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         axis.title = element_text(size = 30), axis.text = element_text(size = 15),

@@ -3,8 +3,8 @@
 #' =============================================================================
 #' Input:  file.path(CONFIG$data_dir, "04_01_estimate.Rdata")
 #'         file.path(CONFIG$data_dir, "02_01_estimation_sample.rds")
-#' Output: file.path(CONFIG$data_dir, "06_02_sim_random.rds")
-#'         file.path(CONFIG$data_dir, "06_02_sim_random_byworker.rds")
+#' Output: file.path(CONFIG$data_dir, "06_01_sim_random.rds")
+#'         file.path(CONFIG$data_dir, "06_01_sim_random_byworker.rds")
 #' =============================================================================
 
 library('alpaca')
@@ -15,7 +15,7 @@ library('stats')
 
 source('config.R')
 source('utils/logging.R')
-log_init("06_02_sim_random.R")
+log_init("06_01_sim_random.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA
@@ -93,7 +93,7 @@ run_one_random_iter <- function(iter, ap, beta_ot, beta_od, beta_si) {
 
   dt[, sim_value := sim_work * true_valuation]
   dt[, sim_payment := fifelse(tot_ot_among > 0L, sim_win_wage * sim_work * all_othours / tot_ot_among, 0)]
-  dt[, worker_surplus := sim_work * true_valuation]
+  dt[, worker_surplus := sim_work * (true_valuation + sim_win_wage)]
 
   byemp <- dt[, .(ot_tot = sum(sim_work)), by = "num_emp1"]
   setorder(byemp, "ot_tot", "num_emp1")
@@ -103,6 +103,7 @@ run_one_random_iter <- function(iter, ap, beta_ot, beta_od, beta_si) {
   stopifnot(nrow(byemp[is_90th == TRUE]) == 1)
 
   res <- data.table(sim_num = iter,
+                    allocative_efficiency = sum(dt$sim_value),
                     worker_value = sum(dt$sim_value),
                     worker_surplus = sum(dt$worker_surplus),
                     wage_bill = sum(dt$sim_payment),
@@ -148,7 +149,9 @@ setorder(results_byworker, "sim_num", "num_emp1")
 
 ensure_directory(CONFIG$data_dir)
 log_message("Saving simulation results")
-saveRDS(results, file.path(CONFIG$data_dir, "06_02_sim_random.rds"))
-saveRDS(results_byworker, file.path(CONFIG$data_dir, "06_02_sim_random_byworker.rds"))
+saveRDS(results, file.path(CONFIG$data_dir, "06_01_sim_random.rds"))
+saveRDS(results_byworker, file.path(CONFIG$data_dir, "06_01_sim_random_byworker.rds"))
 
 log_complete(success = TRUE)
+
+

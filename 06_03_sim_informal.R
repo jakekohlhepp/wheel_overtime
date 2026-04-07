@@ -5,8 +5,8 @@
 #' but choose based on the model index, varying access costs and network.
 #' Input:  file.path(CONFIG$data_dir, "04_01_estimate.Rdata")
 #'         file.path(CONFIG$data_dir, "02_01_estimation_sample.rds")
-#' Output: file.path(CONFIG$data_dir, "06_04_sim_informal.rds")
-#'         file.path(CONFIG$data_dir, "06_04_sim_informal_byworker.rds")
+#' Output: file.path(CONFIG$data_dir, "06_03_sim_informal.rds")
+#'         file.path(CONFIG$data_dir, "06_03_sim_informal_byworker.rds")
 #' =============================================================================
 
 library('data.table')
@@ -16,7 +16,7 @@ library('parallel')
 
 source('config.R')
 source('utils/logging.R')
-log_init("06_04_sim_informal.R")
+log_init("06_03_sim_informal.R")
 
 #' ---------------------------------------------------------------------------
 #' LOAD DATA
@@ -127,9 +127,10 @@ run_one_cell <- function(cell_idx) {
   if (need_bw) bw_list <- vector("list", max_iter)
 
   for (iter in seq_len(max_iter)) {
-    total_value <- 0
-    total_wage  <- 0
-    ot_count    <- integer(n_officers)
+    total_value   <- 0
+    total_surplus <- 0
+    total_wage    <- 0
+    ot_count      <- integer(n_officers)
 
     ## By-worker accumulators (only when needed)
     if (need_bw) {
@@ -152,10 +153,12 @@ run_one_cell <- function(cell_idx) {
 
       ## Select top-k officers by utility (replaces grouped frank)
       sel     <- order(utility, decreasing = TRUE)[seq_len(min(k, ds$n))]
-      val_sel <- val[sel]
+      val_sel     <- val[sel]
+      surplus_sel <- utility[sel] / beta_ot
 
-      total_value <- total_value + sum(val_sel)
-      total_wage  <- total_wage  + sum(ds$pay_rate[sel])
+      total_value   <- total_value + sum(val_sel)
+      total_surplus <- total_surplus + sum(surplus_sel)
+      total_wage    <- total_wage  + sum(ds$pay_rate[sel])
 
       ## Accumulate OT counts per officer
       oids <- ds$oidx[sel]
@@ -167,7 +170,7 @@ run_one_cell <- function(cell_idx) {
       if (need_bw) {
         for (s in seq_along(oids)) {
           o <- oids[s]
-          surplus_acc[o] <- surplus_acc[o] + val_sel[s]
+          surplus_acc[o] <- surplus_acc[o] + surplus_sel[s]
           pay_acc[o]     <- pay_acc[o]     + ds$pay_rate[sel[s]]
           w <- ds$ot_rate_v[sel[s]]
           if (w > wage_max[o]) wage_max[o] <- w
@@ -192,7 +195,9 @@ run_one_cell <- function(cell_idx) {
 
     res_list[[iter]] <- data.table(
       network_reduction = net, access_cost = cost, sim_num = iter,
-      worker_value = total_value, worker_surplus = total_value,
+      allocative_efficiency = total_value,
+      worker_value = total_value,
+      worker_surplus = total_surplus,
       wage_bill = total_wage, share_top10 = share_top10)
 
     if (need_bw) {
@@ -244,7 +249,11 @@ rm(out, bw_parts); gc()
 
 ensure_directory(CONFIG$data_dir)
 log_message("Saving informal trade simulation results")
-saveRDS(results, file.path(CONFIG$data_dir, "06_04_sim_informal.rds"))
-saveRDS(results_byworker, file.path(CONFIG$data_dir, "06_04_sim_informal_byworker.rds"))
+saveRDS(results, file.path(CONFIG$data_dir, "06_03_sim_informal.rds"))
+saveRDS(results_byworker, file.path(CONFIG$data_dir, "06_03_sim_informal_byworker.rds"))
 
 log_complete(success = TRUE)
+
+
+
+

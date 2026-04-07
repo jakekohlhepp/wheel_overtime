@@ -4,11 +4,11 @@
 #' Create heatmaps of allocative efficiency across network/access cost grid.
 #' Input:  file.path(CONFIG$data_dir, "04_01_estimate.Rdata")
 #'         file.path(CONFIG$data_dir, "02_01_estimation_sample.rds")
-#'         file.path(CONFIG$data_dir, "06_02_sim_random.rds")
-#'         file.path(CONFIG$data_dir, "06_03_sim_auction_straight.rds")
-#'         file.path(CONFIG$data_dir, "06_04_sim_informal.rds")
-#'         file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds")
-#'         file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds")
+#'         file.path(CONFIG$data_dir, "06_01_sim_random.rds")
+#'         file.path(CONFIG$data_dir, "06_02_sim_auction_straight.rds")
+#'         file.path(CONFIG$data_dir, "06_03_sim_informal.rds")
+#'         file.path(CONFIG$data_dir, "06_04_sim_informal_reverse.rds")
+#'         file.path(CONFIG$data_dir, "06_05_sim_informal_perfect.rds")
 #' Output: file.path(CONFIG$figures_dir, "07_01_heatmap.png")
 #'         file.path(CONFIG$figures_dir, "07_01_heatmap_less_granular.png")
 #' =============================================================================
@@ -32,15 +32,22 @@ all_pairs <- readRDS(file.path(CONFIG$data_dir, "02_01_estimation_sample.rds"))
 ### compute average ot per shift.
 avg_ot_hours <- sum(all_pairs$varot_hours) / sum(all_pairs$ot_work)
 
-## compute minimum and maximum benchmarks
-random_assignment <- readRDS(file.path(CONFIG$data_dir, "06_02_sim_random.rds"))
-min_benchmark <- mean(random_assignment$worker_value) * avg_ot_hours
+standardize_sim_results <- function(dt) {
+  if (!"allocative_efficiency" %in% names(dt)) {
+    dt[, allocative_efficiency := worker_value]
+  }
+  dt
+}
 
-auctions <- readRDS(file.path(CONFIG$data_dir, "06_03_sim_auction_straight.rds"))
-auctions[, worker_value := worker_value * avg_ot_hours]
+## compute minimum and maximum benchmarks
+random_assignment <- standardize_sim_results(readRDS(file.path(CONFIG$data_dir, "06_01_sim_random.rds")))
+min_benchmark <- mean(random_assignment$allocative_efficiency) * avg_ot_hours
+
+auctions <- standardize_sim_results(readRDS(file.path(CONFIG$data_dir, "06_02_sim_auction_straight.rds")))
+auctions[, allocative_efficiency := allocative_efficiency * avg_ot_hours]
 auctions[, worker_surplus := worker_surplus * avg_ot_hours]
 auctions_sum <- auctions[, .(mean_ineq = mean(share_top10),
-                             mean_allocative = mean(worker_value), mean_wage_bill = mean(wage_bill),
+                             mean_allocative = mean(allocative_efficiency), mean_wage_bill = mean(wage_bill),
                              mean_workersurplus = mean(worker_surplus))]
 max_benchmark <- auctions_sum$mean_allocative[1]
 
@@ -49,17 +56,17 @@ max_benchmark <- auctions_sum$mean_allocative[1]
 #' ---------------------------------------------------------------------------
 
 log_message("Combining simulation results across regimes")
-results <- readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal.rds"))
+results <- standardize_sim_results(readRDS(file.path(CONFIG$data_dir, "06_03_sim_informal.rds")))
 results[, regime := "Observed"]
 results_together <- copy(results)
-results <- readRDS(file.path(CONFIG$data_dir, "06_06_sim_informal_perfect.rds"))
+results <- standardize_sim_results(readRDS(file.path(CONFIG$data_dir, "06_05_sim_informal_perfect.rds")))
 results[, regime := "Positive"]
 results_together <- rbind(results_together, results)
-results <- readRDS(file.path(CONFIG$data_dir, "06_05_sim_informal_reverse.rds"))
+results <- standardize_sim_results(readRDS(file.path(CONFIG$data_dir, "06_04_sim_informal_reverse.rds")))
 results[, regime := "Negative"]
 results_together <- rbind(results_together, results)
 
-agg_res <- results_together[, .(avg_alloc = mean(worker_value) * avg_ot_hours), by = c("network_reduction", "access_cost", "regime")]
+agg_res <- results_together[, .(avg_alloc = mean(allocative_efficiency) * avg_ot_hours), by = c("network_reduction", "access_cost", "regime")]
 agg_res[, avg_alloc := (avg_alloc - min_benchmark) / (max_benchmark - min_benchmark)]
 agg_res[, network_reduction := network_reduction / coef(mod_mod)['ot_rate'] * avg_ot_hours]
 agg_res[, access_cost := -access_cost / coef(mod_mod)['ot_rate'] * avg_ot_hours]
@@ -115,7 +122,7 @@ ggplot(agg_res, aes(access_cost, network_reduction, fill = avg_alloc)) +
   xlab("Overtime Access Cost ($)") +
   scale_x_discrete(labels = lab_less) +
   scale_y_discrete(labels = lab_less_y) +
-  labs(fill = "% Efficiency") + theme(legend.title = element_text(size = 15), legend.text = element_text(size = 15), axis.title = element_text(size = 30), axis.text = element_text(size = 15), strip.text.x = element_text(size = 30))
+  labs(fill = "% Allocative Efficiency") + theme(legend.title = element_text(size = 15), legend.text = element_text(size = 15), axis.title = element_text(size = 30), axis.text = element_text(size = 15), strip.text.x = element_text(size = 30))
 ggsave(file.path(CONFIG$figures_dir, "07_01_heatmap.png"), width = 12, height = 8, units = "in")
 
 #' ---------------------------------------------------------------------------
@@ -138,7 +145,8 @@ ggplot(agg_res, aes(access_cost, network_reduction, fill = avg_alloc)) +
   xlab("Overtime Access Cost ($)") +
   scale_x_discrete(labels = lab_less) +
   scale_y_discrete(labels = lab_less_y) +
-  labs(fill = "% Efficiency") + theme(legend.title = element_text(size = 15), legend.text = element_text(size = 15), axis.title = element_text(size = 30), axis.text = element_text(size = 15), strip.text.x = element_text(size = 30))
+  labs(fill = "% Allocative Efficiency") + theme(legend.title = element_text(size = 15), legend.text = element_text(size = 15), axis.title = element_text(size = 30), axis.text = element_text(size = 15), strip.text.x = element_text(size = 30))
 ggsave(file.path(CONFIG$figures_dir, "07_01_heatmap_less_granular.png"), width = 12, height = 8, units = "in")
 
 log_complete(success = TRUE)
+

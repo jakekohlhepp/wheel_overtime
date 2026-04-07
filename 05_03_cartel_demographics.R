@@ -148,8 +148,8 @@ log_message("Building age-valuation plot")
 
 age_plot_data <- valuation_by_emp[!is.na(valuation_dollars)]
 age_plot_data[, num_age := as.numeric(age_on_20150101)]
-print(cor(age_plot_data[, c("num_age", "valuation_dollars")]))
-print(lm(valuation_dollars ~ num_age, data = age_plot_data[, c("num_age", "valuation_dollars")]))
+log_message(paste("Correlation of age and valuation:",cor(age_plot_data[, c("num_age", "valuation_dollars")])[2]))
+log_message(paste("Slope valuation and age:", coef(lm(valuation_dollars ~ num_age, data = age_plot_data[, c("num_age", "valuation_dollars")]))[2]))
 
 ensure_directory(CONFIG$figures_dir)
 age_plot <- ggplot(age_plot_data, aes(x = num_age, y = valuation_dollars)) +
